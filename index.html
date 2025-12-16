@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Học Kanji N5/N4 - Smart Flashcard</title>
+    <style>
+        /* CSS: Giao diện và Font chữ */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        
+        header { text-align: center; margin-bottom: 20px; }
+        h2 { color: #007bff; margin: 0; }
+        .stats { font-size: 14px; color: #666; margin-top: 5px; }
+
+        /* FLASHCARD CSS */
+        .card-scene {
+            width: 100%;
+            height: 450px;
+            perspective: 1000px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .card.is-flipped { transform: rotateY(180deg); }
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: white;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .kanji-main { font-size: 150px; font-weight: bold; color: #333; font-family: 'Meiryo', 'Yu Gothic', serif; }
+        .han-viet { font-size: 24px; color: #007bff; margin-top: 10px; font-weight: bold; text-transform: uppercase; }
+        .tap-hint { position: absolute; bottom: 20px; font-size: 12px; color: #aaa; }
+        .card-back { background: #fdfdfd; transform: rotateY(180deg); align-items: flex-start; overflow-y: auto; }
+        
+        .info-group { margin-bottom: 15px; width: 100%; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .label { font-size: 12px; color: #888; font-weight: bold; text-transform: uppercase; }
+        .reading-box { display: flex; gap: 15px; }
+        .reading-item { background: #f1f1f1; padding: 5px 10px; border-radius: 5px; font-size: 16px; }
+        .example-list { list-style: none; padding: 0; width: 100%; }
+        .example-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee; }
+        .jp-word { font-weight: bold; color: #d63384; font-size: 18px; }
+        .vi-mean { font-size: 14px; color: #555; }
+        .audio-btn { background: none; border: none; cursor: pointer; font-size: 20px; margin-left: 5px; color: #007bff; }
+
+        /* QUIZ CSS */
+        .quiz-kanji-display { 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 180px;
+            background: #e9ecef;
+            border-radius: 15px 15px 0 0;
+            padding-top: 15px;
+            position: relative;
+        }
+        .quiz-kanji-main { font-size: 80px; font-weight: bold; color: #333; margin: 0; }
+        
+        .quiz-hira-reading { 
+            font-size: 18px; 
+            color: #dc3545; 
+            margin-top: 5px; 
+            font-weight: 500;
+            display: none; 
+            align-items: center;
+            gap: 15px;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .quiz-reading-group { display: flex; align-items: center; }
+        .quiz-reading-label { font-size: 14px; color: #888; margin-right: 5px; }
+        .quiz-audio-btn { font-size: 20px; color: #007bff; cursor: pointer; border: none; background: none; }
+        
+        .quiz-options button {
+            width: 100%;
+            padding: 15px;
+            margin: 8px 0;
+            font-size: 18px; 
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+            text-align: left;
+        }
+        .quiz-options button:hover:not(:disabled) { background-color: #e9ecef; }
+        .quiz-result { font-size: 22px; font-weight: bold; text-align: center; margin-top: 10px; padding: 10px; border-radius: 5px; }
+        
+        #quizExamplesArea {
+            display: none;
+            background: #fdfdfd;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 15px;
+            animation: fadeIn 0.5s;
+        }
+        
+        #quizModeDisplay { display: none; padding-bottom: 50px; }
+        #quizNextButton { display: none; margin-top: 15px; padding: 15px; width: 100%; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;}
+
+        /* Controls */
+        .mode-toggle { text-align: center; margin-bottom: 15px; }
+        .mode-toggle button { padding: 10px 20px; margin: 0 5px; border: 1px solid #007bff; border-radius: 5px; background: white; cursor: pointer; }
+        .mode-toggle button.active { background-color: #007bff; color: white; }
+        .quiz-toggle { display: flex; justify-content: center; margin-bottom: 15px; }
+        .quiz-toggle button { flex-grow: 1; }
+
+        .classification-controls { display: flex; justify-content: space-between; margin-top: 10px; }
+        .controls { display: flex; justify-content: space-between; margin-top: 20px; }
+        .btn-nav { padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; width: 48%; }
+        .btn-prev { background-color: #f1f1f1; color: #333; }
+        .btn-next { background-color: #007bff; color: white; }
+        .btn-mastered { background-color: #28a745; color: white; }
+        .btn-review { background-color: #ffc107; color: #333; }
+        .btn-nav:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        .empty-state { text-align: center; padding: 40px 20px; color: #666; font-size: 18px; }
+        .btn-reset { margin-top: 20px; padding: 10px 20px; background: #17a2b8; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h2>Học Kanji N5/N4</h2>
+        <div class="stats" id="progressDisplay"></div>
+    </header>
+
+    <div class="mode-toggle">
+        <button id="btnFlashcardMode" class="active" onclick="setMode('flashcard')">🃏 Flashcard</button>
+        <button id="btnQuizMode" onclick="setMode('quiz')">📝 Quiz</button>
+    </div>
+
+    <div id="flashcardModeDisplay">
+        <div id="flashcardContainer">
+            <div class="card-scene" onclick="flipCard()">
+                <div class="card" id="flashcard">
+                    <div class="card-face card-front">
+                        <div class="kanji-main" id="f_kanji">...</div>
+                        <div class="han-viet" id="f_hanviet">...</div>
+                        <button class="audio-btn" style="font-size: 30px; margin-top: 10px;" onclick="speakKanji(event)">🔊</button>
+                        <div class="tap-hint">Chạm để lật xem chi tiết</div>
+                    </div>
+                    <div class="card-face card-back" id="cardBackContent">
+                        <!-- Nội dung mặt sau -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="classification-controls" id="classificationControls">
+                <button class="btn-nav btn-review" onclick="markClassification('review')">⚠️ Chưa thuộc</button>
+                <button class="btn-nav btn-mastered" onclick="markClassification('mastered')">✅ Đã thuộc</button>
+            </div>
+            <div class="controls" id="navigationControls">
+                <button class="btn-nav btn-prev" id="btnPrev" onclick="changeCard(-1)">⬅️ Trước</button>
+                <div style="line-height: 50px; font-weight: bold; color: #555;" id="flashcardCounter"></div>
+                <button class="btn-nav btn-next" id="btnNext" onclick="changeCard(1)">Tiếp ➡️</button>
+            </div>
+        </div>
+        
+        <!-- Trạng thái khi đã học hết -->
+        <div id="flashcardEmptyState" class="empty-state" style="display: none;">
+            <div style="font-size: 60px;">🎉</div>
+            <p>Tuyệt vời! Bro đã hoàn thành hết các thẻ trong danh sách này.</p>
+            <p>Bro có muốn trộn lại toàn bộ thẻ để ôn tập không?</p>
+            <button class="btn-reset" onclick="resetFlashcardSession()">🔄 Trộn lại tất cả (340 chữ)</button>
+        </div>
+    </div>
+    
+    <div id="quizModeDisplay">
+        <div class="mode-toggle quiz-toggle">
+            <button id="btnMeaningQuiz" class="active" onclick="setInnerQuizMode('meaning')">📝 Quiz Nghĩa</button>
+            <button id="btnReadingQuiz" onclick="setInnerQuizMode('reading')">✍️ Quiz Cách đọc</button>
+        </div>
+
+        <div class="quiz-kanji-display">
+            <div style="display: flex; align-items: center;">
+                <div class="quiz-kanji-main" id="q_kanji"></div>
+            </div>
+            <div class="quiz-hira-reading" id="quizReadingReveal">
+                <div class="quiz-reading-group">
+                    <span class="quiz-reading-label">On:</span>
+                    <span id="q_onyomi_hira" style="font-weight: bold;"></span>
+                    <button class="audio-btn quiz-audio-btn" onclick="speakQuizReading('onyomi', event)">🔊</button>
+                </div>
+                <span style="margin: 0 10px; color: #ccc;">|</span>
+                <div class="quiz-reading-group">
+                    <span class="quiz-reading-label">Kun:</span>
+                    <span id="q_kunyomi_hira" style="font-weight: bold;"></span>
+                    <button class="audio-btn quiz-audio-btn" onclick="speakQuizReading('kunyomi', event)">🔊</button>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 10px; font-weight: bold; min-height: 24px;" id="quizQuestionPrompt"></div>
+        
+        <div class="quiz-options" id="quizOptions">
+            <button id="optA" onclick="checkAnswer(0)"></button>
+            <button id="optB" onclick="checkAnswer(1)"></button>
+            <button id="optC" onclick="checkAnswer(2)"></button>
+            <button id="optD" onclick="checkAnswer(3)"></button>
+        </div>
+        
+        <div class="quiz-result" id="quizResult">Chọn đáp án...</div>
+
+        <div id="quizExamplesArea">
+            <div class="label" style="margin-bottom: 5px; color: #007bff;">Ví dụ từ vựng:</div>
+            <ul class="example-list" id="q_examples_list"></ul>
+        </div>
+
+        <button id="quizNextButton" onclick="nextQuizQuestion()">Tiếp theo ➡️</button>
+    </div>
+
+</div>
+
+<script>
+    /* ---------------------------------------------------------------------- */
+    /* I. DỮ LIỆU KANJI (ĐÃ BAO GỒM 340 CHỮ NHƯ BRO YÊU CẦU)                  */
+    /* ---------------------------------------------------------------------- */
+// DỮ LIỆU KANJI N5/N4 MỞ RỘNG 
+const kanjiData = [
+    { id: 1, kanji: "一", han_viet: "NHẤT", nghia: "Một", onyomi: "ichi", kunyomi: "hito.tsu", on_hira: "いち", kun_hira: "ひとつ", vi_du: [{ tu: "一つ", hira: "ひとつ", nghia: "Một cái" }, { tu: "一緒", hira: "いっしょ", nghia: "Cùng nhau" }] },
+    { id: 2, kanji: "二", han_viet: "NHỊ", nghia: "Hai", onyomi: "ni", kunyomi: "futa.tsu", on_hira: "に", kun_hira: "ふたつ", vi_du: [{ tu: "二つ", hira: "ふたつ", nghia: "Hai cái" }, { tu: "二日", hira: "ふつか", nghia: "Ngày hai" }] },
+    { id: 3, kanji: "三", han_viet: "TAM", nghia: "Ba", onyomi: "san", kunyomi: "mi.tsu", on_hira: "さん", kun_hira: "みっつ", vi_du: [{ tu: "三つ", hira: "みっつ", nghia: "Ba cái" }, { tu: "三月", hira: "さんがつ", nghia: "Tháng ba" }] },
+    { id: 4, kanji: "四", han_viet: "TỨ", nghia: "Bốn", onyomi: "shi", kunyomi: "yo.tsu", on_hira: "し", kun_hira: "よっつ", vi_du: [{ tu: "四つ", hira: "よっつ", nghia: "Bốn cái" }, { tu: "四月", hira: "しがつ", nghia: "Tháng tư" }] },
+    { id: 5, kanji: "五", han_viet: "NGŨ", nghia: "Năm", onyomi: "go", kunyomi: "itsu.tsu", on_hira: "ご", kun_hira: "いつつ", vi_du: [{ tu: "五つ", hira: "いつつ", nghia: "Năm cái" }, { tu: "五月", hira: "ごがつ", nghia: "Tháng năm" }] },
+    { id: 6, kanji: "六", han_viet: "LỤC", nghia: "Sáu", onyomi: "roku", kunyomi: "mu.tsu", on_hira: "ろく", kun_hira: "むっつ", vi_du: [{ tu: "六つ", hira: "むっつ", nghia: "Sáu cái" }, { tu: "六日", hira: "むいか", nghia: "Ngày sáu" }] },
+    { id: 7, kanji: "七", han_viet: "THẤT", nghia: "Bảy", onyomi: "shichi", kunyomi: "nana.tsu", on_hira: "しち", kun_hira: "ななつ", vi_du: [{ tu: "七つ", hira: "ななつ", nghia: "Bảy cái" }, { tu: "七時", hira: "しちじ", nghia: "Bảy giờ" }] },
+    { id: 8, kanji: "八", han_viet: "BÁT", nghia: "Tám", onyomi: "hachi", kunyomi: "ya.tsu", on_hira: "はち", kun_hira: "やっつ", vi_du: [{ tu: "八つ", hira: "やっつ", nghia: "Tám cái" }, { tu: "八百", hira: "はっぴゃく", nghia: "Tám trăm" }] },
+    { id: 9, kanji: "九", han_viet: "CỬU", nghia: "Chín", onyomi: "kyuu, ku", kunyomi: "koko.no", on_hira: "きゅう", kun_hira: "ここの", vi_du: [{ tu: "九つ", hira: "ここのつ", nghia: "Chín cái" }, { tu: "九時", hira: "くじ", nghia: "Chín giờ" }] },
+    { id: 10, kanji: "十", han_viet: "THẬP", nghia: "Mười", onyomi: "juu", kunyomi: "too", on_hira: "じゅう", kun_hira: "とお", vi_du: [{ tu: "十", hira: "とお", nghia: "Mười cái" }, { tu: "十分", hira: "じゅっぷん", nghia: "Mười phút" }] },
+    { id: 11, kanji: "日", han_viet: "NHẬT", nghia: "Mặt trời, ngày", onyomi: "nichi, jitsu", kunyomi: "hi, bi", on_hira: "にち", kun_hira: "ひ", vi_du: [{ tu: "今日", hira: "きょう", nghia: "Hôm nay" }, { tu: "毎日", hira: "まいにち", nghia: "Mỗi ngày" }] },
+    { id: 12, kanji: "月", han_viet: "NGUYỆT", nghia: "Mặt trăng, tháng", onyomi: "getsu, gatsu", kunyomi: "tsuki", on_hira: "げつ", kun_hira: "つき", vi_du: [{ tu: "今月", hira: "こんげつ", nghia: "Tháng này" }, { tu: "一月", hira: "いちがつ", nghia: "Tháng một" }] },
+    { id: 13, kanji: "火", han_viet: "HỎA", nghia: "Lửa", onyomi: "ka", kunyomi: "hi", on_hira: "か", kun_hira: "ひ", vi_du: [{ tu: "火曜日", hira: "かようび", nghia: "Thứ ba" }, { tu: "花火", hira: "はなび", nghia: "Pháo hoa" }] },
+    { id: 14, kanji: "水", han_viet: "THỦY", nghia: "Nước", onyomi: "sui", kunyomi: "mizu", on_hira: "すい", kun_hira: "みず", vi_du: [{ tu: "水曜日", hira: "すいようび", nghia: "Thứ tư" }, { tu: "水", hira: "みず", nghia: "Nước" }] },
+    { id: 15, kanji: "木", han_viet: "MỘC", nghia: "Cây, gỗ", onyomi: "moku, boku", kunyomi: "ki", on_hira: "もく", kun_hira: "き", vi_du: [{ tu: "木曜日", hira: "もくようび", nghia: "Thứ năm" }, { tu: "木", hira: "き", nghia: "Cây" }] },
+    { id: 16, kanji: "金", han_viet: "KIM", nghia: "Vàng, tiền", onyomi: "kin, kon", kunyomi: "kane", on_hira: "きん", kun_hira: "かね", vi_du: [{ tu: "金曜日", hira: "きんようび", nghia: "Thứ sáu" }, { tu: "お金", hira: "おかね", nghia: "Tiền" }] },
+    { id: 17, kanji: "土", han_viet: "THỔ", nghia: "Đất", onyomi: "do, to", kunyomi: "tsuchi", on_hira: "ど", kun_hira: "つち", vi_du: [{ tu: "土曜日", hira: "どようび", nghia: "Thứ bảy" }, { tu: "土地", hira: "とち", nghia: "Đất đai" }] },
+    { id: 18, kanji: "年", han_viet: "NIÊN", nghia: "Năm", onyomi: "nen", kunyomi: "toshi", on_hira: "ねん", kun_hira: "とし", vi_du: [{ tu: "去年", hira: "きょねん", nghia: "Năm ngoái" }, { tu: "来年", hira: "らいねん", nghia: "Năm sau" }] },
+    { id: 19, kanji: "時", han_viet: "THỜI/THÌ", nghia: "Thời gian, giờ", onyomi: "ji", kunyomi: "toki", on_hira: "じ", kun_hira: "とき", vi_du: [{ tu: "時間", hira: "じかん", nghia: "Thời gian" }, { tu: "時計", hira: "とけい", nghia: "Đồng hồ" }] },
+    { id: 20, kanji: "間", han_viet: "GIAN", nghia: "Khoảng cách, ở giữa", onyomi: "kan, ken", kunyomi: "aida", on_hira: "かん", kun_hira: "あいだ", vi_du: [{ tu: "間", hira: "あいだ", nghia: "Khoảng giữa" }, { tu: "人間", hira: "にんげん", nghia: "Con người" }] },
+    { id: 21, kanji: "人", han_viet: "NHÂN", nghia: "Người", onyomi: "jin, nin", kunyomi: "hito", on_hira: "じん", kun_hira: "ひと", vi_du: [{ tu: "日本人", hira: "にほんじん", nghia: "Người Nhật" }, { tu: "一人", hira: "ひとり", nghia: "Một người" }] },
+    { id: 22, kanji: "子", han_viet: "TỬ", nghia: "Con cái", onyomi: "shi, su", kunyomi: "ko", on_hira: "し", kun_hira: "こ", vi_du: [{ tu: "子供", hira: "こども", nghia: "Đứa trẻ" }, { tu: "女子", hira: "じょし", nghia: "Con gái" }] },
+    { id: 23, kanji: "女", han_viet: "NỮ", nghia: "Phụ nữ", onyomi: "jo, nyo", kunyomi: "onna", on_hira: "じょ", kun_hira: "おんな", vi_du: [{ tu: "女の人", hira: "おんなのひと", nghia: "Phụ nữ" }, { tu: "彼女", hira: "かのじょ", nghia: "Bạn gái" }] },
+    { id: 24, kanji: "男", han_viet: "NAM", nghia: "Đàn ông", onyomi: "dan, nan", kunyomi: "otoko", on_hira: "だん", kun_hira: "おとこ", vi_du: [{ tu: "男の人", hira: "おとこのひと", nghia: "Đàn ông" }, { tu: "男子", hira: "だんし", nghia: "Con trai" }] },
+    { id: 25, kanji: "学", han_viet: "HỌC", nghia: "Học", onyomi: "gaku", kunyomi: "mana.bu", on_hira: "がく", kun_hira: "まなぶ", vi_du: [{ tu: "学生", hira: "がくせい", nghia: "Học sinh" }, { tu: "大学", hira: "だいがく", nghia: "Đại học" }] },
+    { id: 26, kanji: "生", han_viet: "SINH", nghia: "Sống, sinh ra", onyomi: "sei, shou", kunyomi: "i.kiru, u.mu", on_hira: "せい", kun_hira: "いきる", vi_du: [{ tu: "先生", hira: "せんせい", nghia: "Giáo viên" }, { tu: "生まれる", hira: "うまれる", nghia: "Sinh ra" }] },
+    { id: 27, kanji: "先", han_viet: "TIÊN", nghia: "Trước", onyomi: "sen", kunyomi: "saki", on_hira: "せん", kun_hira: "さき", vi_du: [{ tu: "先生", hira: "せんせい", nghia: "Giáo viên" }, { tu: "先月", hira: "せんげつ", nghia: "Tháng trước" }] },
+    { id: 28, kanji: "話", han_viet: "THOẠI", nghia: "Nói chuyện", onyomi: "wa", kunyomi: "hana.su", on_hira: "わ", kun_hira: "はなす", vi_du: [{ tu: "話す", hira: "はなす", nghia: "Nói chuyện" }, { tu: "会話", hira: "かいわ", nghia: "Hội thoại" }] },
+    { id: 29, kanji: "言", han_viet: "NGÔN", nghia: "Lời nói", onyomi: "gen, gon", kunyomi: "i.u", on_hira: "げん", kun_hira: "いう", vi_du: [{ tu: "言う", hira: "いう", nghia: "Nói" }, { tu: "言語", hira: "げんご", nghia: "Ngôn ngữ" }] },
+    { id: 30, kanji: "語", han_viet: "NGỮ", nghia: "Ngôn ngữ, từ", onyomi: "go", kunyomi: "kata.ru", on_hira: "ご", kun_hira: "かたる", vi_du: [{ tu: "日本語", hira: "にほんご", nghia: "Tiếng Nhật" }, { tu: "物語", hira: "ものがたり", nghia: "Truyện kể" }] },
+    { id: 31, kanji: "書", han_viet: "THƯ", nghia: "Viết", onyomi: "sho", kunyomi: "ka.ku", on_hira: "しょ", kun_hira: "かく", vi_du: [{ tu: "書く", hira: "かく", nghia: "Viết" }, { tu: "図書館", hira: "としょかん", nghia: "Thư viện" }] },
+    { id: 32, kanji: "読", han_viet: "ĐỘC", nghia: "Đọc", onyomi: "doku", kunyomi: "yo.mu", on_hira: "どく", kun_hira: "よむ", vi_du: [{ tu: "読む", hira: "よむ", nghia: "Đọc" }, { tu: "読書", hira: "どくしょ", nghia: "Đọc sách" }] },
+    { id: 33, kanji: "見", han_viet: "KIẾN", nghia: "Nhìn, thấy", onyomi: "ken", kunyomi: "mi.ru", on_hira: "けん", kun_hira: "みる", vi_du: [{ tu: "見る", hira: "みる", nghia: "Nhìn" }, { tu: "見せる", hira: "みせる", nghia: "Cho xem" }] },
+    { id: 34, kanji: "聞", han_viet: "VĂN", nghia: "Nghe, hỏi", onyomi: "bun, mon", kunyomi: "ki.ku", on_hira: "ぶん", kun_hira: "きく", vi_du: [{ tu: "聞く", hira: "きく", nghia: "Nghe/Hỏi" }, { tu: "新聞", hira: "しんぶん", nghia: "Báo chí" }] },
+    { id: 35, kanji: "食", han_viet: "THỰC", nghia: "Ăn", onyomi: "shoku", kunyomi: "ku.u, ta.beru", on_hira: "しょく", kun_hira: "たべる", vi_du: [{ tu: "食べる", hira: "たべる", nghia: "Ăn" }, { tu: "朝食", hira: "ちょうしょく", nghia: "Bữa sáng" }] },
+    { id: 36, kanji: "飲", han_viet: "ẨM", nghia: "Uống", onyomi: "in", kunyomi: "no.mu", on_hira: "いん", kun_hira: "のむ", vi_du: [{ tu: "飲む", hira: "のむ", nghia: "Uống" }, { tu: "飲料水", hira: "いんりょうすい", nghia: "Nước uống" }] },
+    { id: 37, kanji: "東", han_viet: "ĐÔNG", nghia: "Hướng Đông", onyomi: "tou", kunyomi: "higashi", on_hira: "とう", kun_hira: "ひがし", vi_du: [{ tu: "東", hira: "ひがし", nghia: "Hướng Đông" }, { tu: "東京", hira: "とうきょう", nghia: "Tokyo" }] },
+    { id: 38, kanji: "西", han_viet: "TÂY", nghia: "Hướng Tây", onyomi: "sei, sai", kunyomi: "nishi", on_hira: "せい", kun_hira: "にし", vi_du: [{ tu: "西", hira: "にし", nghia: "Hướng Tây" }, { tu: "関西", hira: "かんさい", nghia: "Vùng Kansai" }] },
+    { id: 39, kanji: "南", han_viet: "NAM", nghia: "Hướng Nam", onyomi: "nan", kunyomi: "minami", on_hira: "なん", kun_hira: "みなみ", vi_du: [{ tu: "南", hira: "みなみ", nghia: "Hướng Nam" }, { tu: "南極", hira: "なんきょく", nghia: "Nam Cực" }] },
+    { id: 40, kanji: "北", han_viet: "BẮC", nghia: "Hướng Bắc", onyomi: "hoku", kunyomi: "kita", on_hira: "ほく", kun_hira: "きた", vi_du: [{ tu: "北", hira: "きた", nghia: "Hướng Bắc" }, { tu: "北海道", hira: "ほっかいどう", nghia: "Hokkaido" }] },
+    { id: 41, kanji: "上", han_viet: "THƯỢNG", nghia: "Trên", onyomi: "jou", kunyomi: "ue", on_hira: "じょう", kun_hira: "うえ", vi_du: [{ tu: "上", hira: "うえ", nghia: "Trên" }, { tu: "上げる", hira: "あげる", nghia: "Nâng lên" }] },
+    { id: 42, kanji: "下", han_viet: "HẠ", nghia: "Dưới", onyomi: "ka, ge", kunyomi: "shita", on_hira: "か", kun_hira: "した", vi_du: [{ tu: "下", hira: "した", nghia: "Dưới" }, { tu: "下がる", hira: "さがる", nghia: "Rơi xuống" }] },
+    { id: 43, kanji: "左", han_viet: "TẢ", nghia: "Trái", onyomi: "sa", kunyomi: "hidari", on_hira: "さ", kun_hira: "ひだり", vi_du: [{ tu: "左", hira: "ひだり", nghia: "Bên trái" }, { tu: "左側", hira: "ひだりがわ", nghia: "Phía trái" }] },
+    { id: 44, kanji: "右", han_viet: "HỮU", nghia: "Phải", onyomi: "u, yuu", kunyomi: "migi", on_hira: "う", kun_hira: "みぎ", vi_du: [{ tu: "右", hira: "みぎ", nghia: "Bên phải" }, { tu: "左右", hira: "さゆう", nghia: "Trái phải" }] },
+    { id: 45, kanji: "前", han_viet: "TIỀN", nghia: "Trước", onyomi: "zen", kunyomi: "mae", on_hira: "ぜん", kun_hira: "まえ", vi_du: [{ tu: "前", hira: "まえ", nghia: "Trước" }, { tu: "午前", hira: "ごぜん", nghia: "Buổi sáng (AM)" }] },
+    { id: 46, kanji: "後", han_viet: "HẬU", nghia: "Sau", onyomi: "go, kou", kunyomi: "ato, ushiro", on_hira: "ご", kun_hira: "うしろ", vi_du: [{ tu: "後ろ", hira: "うしろ", nghia: "Phía sau" }, { tu: "午後", hira: "ごご", nghia: "Buổi chiều (PM)" }] },
+    { id: 47, kanji: "外", han_viet: "NGOẠI", nghia: "Ngoài", onyomi: "gai, ge", kunyomi: "soto", on_hira: "がい", kun_hira: "そと", vi_du: [{ tu: "外", hira: "そと", nghia: "Bên ngoài" }, { tu: "外国", hira: "がいこく", nghia: "Nước ngoài" }] },
+    { id: 48, kanji: "国", han_viet: "QUỐC", nghia: "Đất nước", onyomi: "koku", kunyomi: "kuni", on_hira: "こく", kun_hira: "くに", vi_du: [{ tu: "国", hira: "くに", nghia: "Đất nước" }, { tu: "外国", hira: "がいこく", nghia: "Nước ngoài" }] },
+    { id: 49, kanji: "中", han_viet: "TRUNG", nghia: "Trong, giữa", onyomi: "chuu", kunyomi: "naka", on_hira: "ちゅう", kun_hira: "なか", vi_du: [{ tu: "中", hira: "なか", nghia: "Bên trong" }, { tu: "中国", hira: "ちゅうごく", nghia: "Trung Quốc" }] },
+    { id: 50, kanji: "大", han_viet: "ĐẠI", nghia: "To, lớn", onyomi: "dai, tai", kunyomi: "oo.kii", on_hira: "だい", kun_hira: "おおきい", vi_du: [{ tu: "大きい", hira: "おおきい", nghia: "To lớn" }, { tu: "大学", hira: "だいがく", nghia: "Đại học" }] },
+    { id: 51, kanji: "小", han_viet: "TIỂU", nghia: "Nhỏ", onyomi: "shou", kunyomi: "chii.sai", on_hira: "しょう", kun_hira: "ちいさい", vi_du: [{ tu: "小さい", hira: "ちいさい", nghia: "Nhỏ bé" }, { tu: "小学校", hira: "しょうがっこう", nghia: "Trường tiểu học" }] },
+    { id: 52, kanji: "行", han_viet: "HÀNH/HÀNG", nghia: "Đi, làm", onyomi: "kou, gyou", kunyomi: "i.ku", on_hira: "こう", kun_hira: "いく", vi_du: [{ tu: "行く", hira: "いく", nghia: "Đi" }, { tu: "銀行", hira: "ぎんこう", nghia: "Ngân hàng" }] },
+    { id: 53, kanji: "来", han_viet: "LAI", nghia: "Đến", onyomi: "rai", kunyomi: "ku.ru", on_hira: "らい", kun_hira: "くる", vi_du: [{ tu: "来る", hira: "くる", nghia: "Đến" }, { tu: "来月", hira: "らいげつ", nghia: "Tháng sau" }] },
+    { id: 54, kanji: "出", han_viet: "XUẤT", nghia: "Ra ngoài", onyomi: "shutsu", kunyomi: "de.ru", on_hira: "しゅつ", kun_hira: "でる", vi_du: [{ tu: "出る", hira: "でる", nghia: "Ra khỏi" }, { tu: "出口", hira: "でぐち", nghia: "Lối ra" }] },
+    { id: 55, kanji: "入", han_viet: "NHẬP", nghia: "Vào", onyomi: "nyuu", kunyomi: "hai.ru", on_hira: "にゅう", kun_hira: "はいる", vi_du: [{ tu: "入る", hira: "はいる", nghia: "Vào" }, { tu: "入口", hira: "いりぐち", nghia: "Lối vào" }] },
+    { id: 56, kanji: "休", han_viet: "HƯU", nghia: "Nghỉ ngơi", onyomi: "kyuu", kunyomi: "yasu.mu", on_hira: "きゅう", kun_hira: "やすむ", vi_du: [{ tu: "休む", hira: "やすむ", nghia: "Nghỉ ngơi" }, { tu: "休日", hira: "きゅうじつ", nghia: "Ngày nghỉ" }] },
+    { id: 57, kanji: "立", han_viet: "LẬP", nghia: "Đứng", onyomi: "ritsu", kunyomi: "ta.tsu", on_hira: "りつ", kun_hira: "たつ", vi_du: [{ tu: "立つ", hira: "たつ", nghia: "Đứng" }, { tu: "国立", hira: "こくりつ", nghia: "Quốc lập" }] },
+    { id: 58, kanji: "早", han_viet: "TẢO", nghia: "Sớm", onyomi: "sou", kunyomi: "haya.i", on_hira: "そう", kun_hira: "はやい", vi_du: [{ tu: "早い", hira: "はやい", nghia: "Nhanh/Sớm" }, { tu: "早朝", hira: "そうちょう", nghia: "Sáng sớm" }] },
+    { id: 59, kanji: "会", han_viet: "HỘI", nghia: "Gặp gỡ", onyomi: "kai", kunyomi: "a.u", on_hira: "かい", kun_hira: "あう", vi_du: [{ tu: "会う", hira: "あう", nghia: "Gặp" }, { tu: "会社", hira: "かいしゃ", nghia: "Công ty" }] },
+    { id: 60, kanji: "社", han_viet: "XÃ", nghia: "Công ty, đền", onyomi: "sha", kunyomi: "yashiro", on_hira: "しゃ", kun_hira: "やしろ", vi_du: [{ tu: "会社", hira: "かいしゃ", nghia: "Công ty" }, { tu: "社会", hira: "しゃかい", nghia: "Xã hội" }] },
+    { id: 61, kanji: "気", han_viet: "KHÍ", nghia: "Không khí, tinh thần", onyomi: "ki, ke", kunyomi: "", on_hira: "き", kun_hira: "", vi_du: [{ tu: "元気", hira: "げんき", nghia: "Khỏe mạnh" }, { tu: "天気", hira: "てんき", nghia: "Thời tiết" }] },
+    { id: 62, kanji: "天", han_viet: "THIÊN", nghia: "Trời", onyomi: "ten", kunyomi: "ame", on_hira: "てん", kun_hira: "あめ", vi_du: [{ tu: "天気", hira: "てんき", nghia: "Thời tiết" }, { tu: "天才", hira: "てんさい", nghia: "Thiên tài" }] },
+    { id: 63, kanji: "雨", han_viet: "VŨ", nghia: "Mưa", onyomi: "u", kunyomi: "ame", on_hira: "う", kun_hira: "あめ", vi_du: [{ tu: "雨", hira: "あめ", nghia: "Mưa" }, { tu: "大雨", hira: "おおあめ", nghia: "Mưa lớn" }] },
+    { id: 64, kanji: "名", han_viet: "DANH", nghia: "Tên", onyomi: "mei, myou", kunyomi: "na", on_hira: "めい", kun_hira: "な", vi_du: [{ tu: "名前", hira: "なまえ", nghia: "Tên" }, { tu: "有名", hira: "ゆうめい", nghia: "Nổi tiếng" }] },
+    { id: 65, kanji: "本", han_viet: "BẢN/BỔN", nghia: "Sách, gốc", onyomi: "hon", kunyomi: "moto", on_hira: "ほん", kun_hira: "もと", vi_du: [{ tu: "本", hira: "ほん", nghia: "Sách" }, { tu: "日本", hira: "にほん", nghia: "Nhật Bản" }] },
+    { id: 66, kanji: "円", han_viet: "VIÊN", nghia: "Yên (tiền), tròn", onyomi: "en", kunyomi: "maru", on_hira: "えん", kun_hira: "まる", vi_du: [{ tu: "一万円", hira: "いちまんえん", nghia: "10,000 Yên" }, { tu: "円", hira: "えん", nghia: "Đơn vị Yên" }] },
+    { id: 67, kanji: "百", han_viet: "BÁCH", nghia: "Trăm", onyomi: "hyaku", kunyomi: "momo", on_hira: "ひゃく", kun_hira: "もも", vi_du: [{ tu: "三百", hira: "さんびゃく", nghia: "Ba trăm" }, { tu: "百分", hira: "ひゃくぶん", nghia: "Một trăm phần" }] },
+    { id: 68, kanji: "千", han_viet: "THIÊN", nghia: "Nghìn", onyomi: "sen", kunyomi: "chi", on_hira: "せん", kun_hira: "ち", vi_du: [{ tu: "三千", hira: "さんぜん", nghia: "Ba nghìn" }, { tu: "千円", hira: "せんえん", nghia: "Nghìn Yên" }] },
+    { id: 69, kanji: "万", han_viet: "VẠN", nghia: "Mười nghìn", onyomi: "man, ban", kunyomi: "yorozu", on_hira: "まん", kun_hira: "よろず", vi_du: [{ tu: "一万", hira: "いちまん", nghia: "Mười nghìn" }, { tu: "万年", hira: "まんねん", nghia: "Vạn năm" }] },
+    { id: 70, kanji: "何", han_viet: "HÀ", nghia: "Cái gì", onyomi: "ka", kunyomi: "nani, nan", on_hira: "か", kun_hira: "なに", vi_du: [{ tu: "何", hira: "なに", nghia: "Cái gì" }, { tu: "何時", hira: "なんじ", nghia: "Mấy giờ" }] },
+    { id: 71, kanji: "高", han_viet: "CAO", nghia: "Cao, đắt", onyomi: "kou", kunyomi: "taka.i", on_hira: "こう", kun_hira: "たかい", vi_du: [{ tu: "高い", hira: "たかい", nghia: "Cao/Đắt" }, { tu: "高校", hira: "こうこう", nghia: "Trường cấp 3" }] },
+    { id: 72, kanji: "安", han_viet: "AN", nghia: "Rẻ", onyomi: "an", kunyomi: "yasu.i", on_hira: "あん", kun_hira: "やすい", vi_du: [{ tu: "安い", hira: "やすい", nghia: "Rẻ" }, { tu: "安心", hira: "あんしん", nghia: "An tâm" }] },
+    { id: 73, kanji: "新", han_viet: "TÂN", nghia: "Mới", onyomi: "shin", kunyomi: "atara.shii", on_hira: "しん", kun_hira: "あたらしい", vi_du: [{ tu: "新しい", hira: "あたらしい", nghia: "Mới" }, { tu: "新聞", hira: "しんぶん", nghia: "Báo" }] },
+    { id: 74, kanji: "古", han_viet: "CỔ", nghia: "Cũ", onyomi: "ko", kunyomi: "furu.i", on_hira: "こ", kun_hira: "ふるい", vi_du: [{ tu: "古い", hira: "ふるい", nghia: "Cũ" }, { tu: "中古", hira: "ちゅうこ", nghia: "Đã qua sử dụng" }] },
+    { id: 75, kanji: "長", han_viet: "TRƯỜNG/TRƯỞNG", nghia: "Dài, trưởng", onyomi: "chou", kunyomi: "naga.i", on_hira: "ちょう", kun_hira: "ながい", vi_du: [{ tu: "長い", hira: "ながい", nghia: "Dài" }, { tu: "社長", hira: "しゃちょう", nghia: "Giám đốc" }] },
+    { id: 76, kanji: "多", han_viet: "ĐA", nghia: "Nhiều", onyomi: "ta", kunyomi: "oo.i", on_hira: "た", kun_hira: "おおい", vi_du: [{ tu: "多い", hira: "おおい", nghia: "Nhiều" }, { tu: "多分", hira: "たぶん", nghia: "Có lẽ" }] },
+    { id: 77, kanji: "少", han_viet: "THIỂU/THIẾU", nghia: "Ít, một chút", onyomi: "shou", kunyomi: "suku.nai", on_hira: "しょう", kun_hira: "すくない", vi_du: [{ tu: "少ない", hira: "すくない", nghia: "Ít" }, { tu: "少し", hira: "すこし", nghia: "Một chút" }] },
+    { id: 78, kanji: "広", han_viet: "QUẢNG", nghia: "Rộng", onyomi: "kou", kunyomi: "hiro.i", on_hira: "こう", kun_hira: "ひろい", vi_du: [{ tu: "広い", hira: "ひろい", nghia: "Rộng" }, { tu: "広場", hira: "ひろば", nghia: "Quảng trường" }] },
+    { id: 79, kanji: "空", han_viet: "KHÔNG", nghia: "Trống, bầu trời", onyomi: "kuu", kunyomi: "sora, a.ku", on_hira: "くう", kun_hira: "そら", vi_du: [{ tu: "空", hira: "そら", nghia: "Bầu trời" }, { tu: "空港", hira: "くうこう", nghia: "Sân bay" }] },
+    { id: 80, kanji: "手", han_viet: "THỦ", nghia: "Tay", onyomi: "shu", kunyomi: "te", on_hira: "しゅ", kun_hira: "て", vi_du: [{ tu: "手", hira: "て", nghia: "Cái tay" }, { tu: "上手", hira: "じょうず", nghia: "Giỏi" }] },
+    { id: 81, kanji: "父", han_viet: "PHỤ", nghia: "Bố", onyomi: "fu", kunyomi: "chichi", on_hira: "ふ", kun_hira: "ちち", vi_du: [{ tu: "お父さん", hira: "おとうさん", nghia: "Bố (kính ngữ)" }, { tu: "父母", hira: "ふぼ", nghia: "Cha mẹ" }] },
+    { id: 82, kanji: "母", han_viet: "MẪU", nghia: "Mẹ", onyomi: "bo", kunyomi: "haha", on_hira: "ぼ", kun_hira: "はは", vi_du: [{ tu: "お母さん", hira: "おかあさん", nghia: "Mẹ (kính ngữ)" }, { tu: "母国", hira: "ぼこく", nghia: "Mẫu quốc" }] },
+    { id: 83, kanji: "兄", han_viet: "HUYNH", nghia: "Anh trai", onyomi: "kei, kyou", kunyomi: "ani", on_hira: "けい", kun_hira: "あに", vi_du: [{ tu: "兄", hira: "あに", nghia: "Anh trai (của mình)" }, { tu: "兄弟", hira: "きょうだい", nghia: "Anh em" }] },
+    { id: 84, kanji: "弟", han_viet: "ĐỆ", nghia: "Em trai", onyomi: "tei, dai", kunyomi: "otouto", on_hira: "てい", kun_hira: "おとうと", vi_du: [{ tu: "弟", hira: "おとうと", nghia: "Em trai (của mình)" }, { tu: "弟子", hira: "でし", nghia: "Đệ tử" }] },
+    { id: 85, kanji: "姉", han_viet: "TỶ", nghia: "Chị gái", onyomi: "shi", kunyomi: "ane", on_hira: "し", kun_hira: "あね", vi_du: [{ tu: "姉", hira: "あね", nghia: "Chị gái (của mình)" }, { tu: "姉妹", hira: "しまい", nghia: "Chị em gái" }] },
+    { id: 86, kanji: "妹", han_viet: "MUỘI", nghia: "Em gái", onyomi: "mai", kunyomi: "imouto", on_hira: "まい", kun_hira: "いもうと", vi_du: [{ tu: "妹", hira: "いもうと", nghia: "Em gái (của mình)" }, { tu: "姉妹", hira: "しまい", nghia: "Chị em gái" }] },
+    { id: 87, kanji: "友", han_viet: "HỮU", nghia: "Bạn bè", onyomi: "yuu", kunyomi: "tomo", on_hira: "ゆう", kun_hira: "とも", vi_du: [{ tu: "友達", hira: "ともだち", nghia: "Bạn bè" }, { tu: "友情", hira: "ゆうじょう", nghia: "Tình bạn" }] },
+    { id: 88, kanji: "主", han_viet: "CHỦ", nghia: "Chủ nhân", onyomi: "shu", kunyomi: "nushi", on_hira: "しゅ", kun_hira: "ぬし", vi_du: [{ tu: "主人", hira: "しゅじん", nghia: "Chồng/Chủ nhân" }, { tu: "持ち主", hira: "もちぬし", nghia: "Chủ sở hữu" }] },
+    { id: 89, kanji: "住", han_viet: "TRÚ", nghia: "Sống, ở", onyomi: "juu", kunyomi: "su.mu", on_hira: "じゅう", kun_hira: "すむ", vi_du: [{ tu: "住む", hira: "すむ", nghia: "Sống, ở" }, { tu: "住所", hira: "じゅうしょ", nghia: "Địa chỉ" }] },
+    { id: 90, kanji: "所", han_viet: "SỞ", nghia: "Nơi chốn", onyomi: "sho", kunyomi: "tokoro", on_hira: "しょ", kun_hira: "ところ", vi_du: [{ tu: "場所", hira: "ばしょ", nghia: "Địa điểm" }, { tu: "近所", hira: "きんじょ", nghia: "Hàng xóm" }] },
+    { id: 91, kanji: "持", han_viet: "TRÌ", nghia: "Cầm, giữ", onyomi: "ji", kunyomi: "mo.tsu", on_hira: "じ", kun_hira: "もつ", vi_du: [{ tu: "持つ", hira: "もつ", nghia: "Cầm/Mang" }, { tu: "気持ち", hira: "きもち", nghia: "Cảm xúc" }] },
+    { id: 92, kanji: "近", han_viet: "CẬN", nghia: "Gần", onyomi: "kin", kunyomi: "chika.i", on_hira: "きん", kun_hira: "ちかい", vi_du: [{ tu: "近い", hira: "ちかい", nghia: "Gần" }, { tu: "近所", hira: "きんじょ", nghia: "Hàng xóm" }] },
+    { id: 93, kanji: "遠", han_viet: "VIỄN", nghia: "Xa", onyomi: "en", kunyomi: "too.i", on_hira: "えん", kun_hira: "とおい", vi_du: [{ tu: "遠い", hira: "とおい", nghia: "Xa" }, { tu: "遠足", hira: "えんそく", nghia: "Dã ngoại" }] },
+    { id: 94, kanji: "道", han_viet: "ĐẠO", nghia: "Con đường", onyomi: "dou", kunyomi: "michi", on_hira: "どう", kun_hira: "みち", vi_du: [{ tu: "道", hira: "みち", nghia: "Con đường" }, { tu: "北海道", hira: "ほっかいどう", nghia: "Hokkaido" }] },
+    { id: 95, kanji: "通", han_viet: "THÔNG", nghia: "Đi qua, thông qua", onyomi: "tsuu", kunyomi: "too.ru", on_hira: "つう", kun_hira: "とおる", vi_du: [{ tu: "通る", hira: "とおる", nghia: "Đi qua" }, { tu: "交通", hira: "こうつう", nghia: "Giao thông" }] },
+    { id: 96, kanji: "走", han_viet: "TẨU", nghia: "Chạy", onyomi: "sou", kunyomi: "hashi.ru", on_hira: "そう", kun_hira: "はしる", vi_du: [{ tu: "走る", hira: "はしる", nghia: "Chạy" }, { tu: "脱走", hira: "だっそう", nghia: "Trốn thoát" }] },
+    { id: 97, kanji: "帰", han_viet: "QUY", nghia: "Trở về", onyomi: "ki", kunyomi: "kae.ru", on_hira: "き", kun_hira: "かえる", vi_du: [{ tu: "帰る", hira: "かえる", nghia: "Trở về" }, { tu: "帰国", hira: "きこく", nghia: "Về nước" }] },
+    { id: 98, kanji: "歩", han_viet: "BỘ", nghia: "Đi bộ", onyomi: "ho, bu", kunyomi: "aru.ku", on_hira: "ほ", kun_hira: "あるく", vi_du: [{ tu: "歩く", hira: "あるく", nghia: "Đi bộ" }, { tu: "散歩", hira: "さんぽ", nghia: "Tản bộ" }] },
+    { id: 99, kanji: "立", han_viet: "LẬP", nghia: "Đứng", onyomi: "ritsu", kunyomi: "ta.tsu", on_hira: "りつ", kun_hira: "たつ", vi_du: [{ tu: "立つ", hira: "たつ", nghia: "Đứng" }, { tu: "国立", hira: "こくりつ", nghia: "Quốc lập" }] },
+    { id: 100, kanji: "自", han_viet: "TỰ", nghia: "Tự mình", onyomi: "ji, shi", kunyomi: "mizuka.ra", on_hira: "じ", kun_hira: "みずから", vi_du: [{ tu: "自分", hira: "じぶん", nghia: "Bản thân" }, { tu: "自動", hira: "じどう", nghia: "Tự động" }] },
+    { id: 101, kanji: "動", han_viet: "ĐỘNG", nghia: "Di chuyển", onyomi: "dou", kunyomi: "ugo.ku", on_hira: "どう", kun_hira: "うごく", vi_du: [{ tu: "動く", hira: "うごく", nghia: "Di chuyển" }, { tu: "動物", hira: "どうぶつ", nghia: "Động vật" }] },
+    { id: 102, kanji: "物", han_viet: "VẬT", nghia: "Vật chất, đồ vật", onyomi: "butsu, motsu", kunyomi: "mono", on_hira: "ぶつ", kun_hira: "もの", vi_du: [{ tu: "物", hira: "もの", nghia: "Đồ vật" }, { tu: "動物", hira: "どうぶつ", nghia: "Động vật" }] },
+    { id: 103, kanji: "色", han_viet: "SẮC", nghia: "Màu sắc", onyomi: "shiki, shoku", kunyomi: "iro", on_hira: "しき", kun_hira: "いろ", vi_du: [{ tu: "色", hira: "いろ", nghia: "Màu sắc" }, { tu: "景色", hira: "けしき", nghia: "Phong cảnh" }] },
+    { id: 104, kanji: "茶", han_viet: "TRÀ", nghia: "Trà", onyomi: "cha, sa", kunyomi: "", on_hira: "ちゃ", kun_hira: "", vi_du: [{ tu: "お茶", hira: "おちゃ", nghia: "Trà" }, { tu: "茶色", hira: "ちゃいろ", nghia: "Màu nâu" }] },
+    { id: 105, kanji: "力", han_viet: "LỰC", nghia: "Sức mạnh", onyomi: "ryoku, riki", kunyomi: "chikara", on_hira: "りょく", kun_hira: "ちから", vi_du: [{ tu: "力", hira: "ちから", nghia: "Sức mạnh" }, { tu: "努力", hira: "どりょく", nghia: "Nỗ lực" }] },
+    { id: 106, kanji: "心", han_viet: "TÂM", nghia: "Trái tim, tinh thần", onyomi: "shin", kunyomi: "kokoro", on_hira: "しん", kun_hira: "こころ", vi_du: [{ tu: "心", hira: "こころ", nghia: "Trái tim" }, { tu: "安心", hira: "あんしん", nghia: "An tâm" }] },
+    { id: 107, kanji: "思", han_viet: "TƯ", nghia: "Nghĩ", onyomi: "shi", kunyomi: "omo.u", on_hira: "し", kun_hira: "おもう", vi_du: [{ tu: "思う", hira: "おもう", nghia: "Nghĩ" }, { tu: "思想", hira: "しそう", nghia: "Tư tưởng" }] },
+    { id: 108, kanji: "買", han_viet: "MÃI", nghia: "Mua", onyomi: "bai", kunyomi: "ka.u", on_hira: "ばい", kun_hira: "かう", vi_du: [{ tu: "買う", hira: "かう", nghia: "Mua" }, { tu: "売買", hira: "ばいばい", nghia: "Mua bán" }] },
+    { id: 109, kanji: "売", han_viet: "MẠI", nghia: "Bán", onyomi: "bai", kunyomi: "u.ru", on_hira: "ばい", kun_hira: "うる", vi_du: [{ tu: "売る", hira: "うる", nghia: "Bán" }, { tu: "売店", hira: "ばいてん", nghia: "Quầy bán hàng" }] },
+    { id: 110, kanji: "習", han_viet: "TẬP", nghia: "Học tập, luyện tập", onyomi: "shuu", kunyomi: "nara.u", on_hira: "しゅう", kun_hira: "ならう", vi_du: [{ tu: "習う", hira: "ならう", nghia: "Học" }, { tu: "練習", hira: "れんしゅう", nghia: "Luyện tập" }] },
+    { id: 111, kanji: "勉", han_viet: "MIỄN", nghia: "Cố gắng", onyomi: "ben", kunyomi: "tsuto.meru", on_hira: "べん", kun_hira: "つとめる", vi_du: [{ tu: "勉強", hira: "べんきょう", nghia: "Học (Study)" }, { tu: "努力", hira: "どりょく", nghia: "Nỗ lực" }] },
+    { id: 112, kanji: "英", han_viet: "ANH", nghia: "Anh hùng, Anh quốc", onyomi: "ei", kunyomi: "hana", on_hira: "えい", kun_hira: "はな", vi_du: [{ tu: "英語", hira: "えいご", nghia: "Tiếng Anh" }, { tu: "英国", hira: "えいこく", nghia: "Nước Anh" }] },
+    { id: 113, kanji: "員", han_viet: "VIÊN", nghia: "Thành viên", onyomi: "in", kunyomi: "", on_hira: "いん", kun_hira: "", vi_du: [{ tu: "店員", hira: "てんいん", nghia: "Nhân viên cửa hàng" }, { tu: "会員", hira: "かいいん", nghia: "Hội viên" }] },
+    { id: 114, kanji: "店", han_viet: "ĐIẾM", nghia: "Cửa hàng", onyomi: "ten", kunyomi: "mise", on_hira: "てん", kun_hira: "みせ", vi_du: [{ tu: "店", hira: "みせ", nghia: "Cửa hàng" }, { tu: "売店", hira: "ばいてん", nghia: "Quầy bán hàng" }] },
+    { id: 115, kanji: "駅", han_viet: "DỊCH", nghia: "Nhà ga", onyomi: "eki", kunyomi: "", on_hira: "えき", kun_hira: "", vi_du: [{ tu: "駅", hira: "えき", nghia: "Nhà ga" }, { tu: "駅前", hira: "えきまえ", nghia: "Trước ga" }] },
+    { id: 116, kanji: "電", han_viet: "ĐIỆN", nghia: "Điện", onyomi: "den", kunyomi: "", on_hira: "でん", kun_hira: "", vi_du: [{ tu: "電気", hira: "でんき", nghia: "Điện" }, { tu: "電話", hira: "でんわ", nghia: "Điện thoại" }] },
+    { id: 117, kanji: "車", han_viet: "XA", nghia: "Xe cộ", onyomi: "sha", kunyomi: "kuruma", on_hira: "しゃ", kun_hira: "くるま", vi_du: [{ tu: "電車", hira: "でんしゃ", nghia: "Tàu điện" }, { tu: "自動車", hira: "じどうしゃ", nghia: "Ô tô" }] },
+    { id: 118, kanji: "馬", han_viet: "MÃ", nghia: "Ngựa", onyomi: "ba", kunyomi: "uma", on_hira: "ば", kun_hira: "うま", vi_du: [{ tu: "馬", hira: "うま", nghia: "Ngựa" }, { tu: "乗馬", hira: "じょうば", nghia: "Cưỡi ngựa" }] },
+    { id: 119, kanji: "魚", han_viet: "NGƯ", nghia: "Cá", onyomi: "gyo", kunyomi: "sakana", on_hira: "ぎょ", kun_hira: "さかな", vi_du: [{ tu: "魚", hira: "さかな", nghia: "Cá" }, { tu: "金魚", hira: "きんぎょ", nghia: "Cá vàng" }] },
+    { id: 120, kanji: "鳥", han_viet: "ĐIỂU", nghia: "Chim", onyomi: "chou", kunyomi: "tori", on_hira: "ちょう", kun_hira: "とり", vi_du: [{ tu: "鳥", hira: "とり", nghia: "Chim" }, { tu: "野鳥", hira: "やちょう", nghia: "Chim hoang dã" }] },
+    { id: 121, kanji: "長", han_viet: "TRƯỜNG/TRƯỞNG", nghia: "Dài, trưởng", onyomi: "chou", kunyomi: "naga.i", on_hira: "ちょう", kun_hira: "ながい", vi_du: [{ tu: "長い", hira: "ながい", nghia: "Dài" }, { tu: "社長", hira: "しゃちょう", nghia: "Giám đốc" }] },
+    { id: 122, kanji: "短", han_viet: "ĐOẢN", nghia: "Ngắn", onyomi: "tan", kunyomi: "mijika.i", on_hira: "たん", kun_hira: "みじかい", vi_du: [{ tu: "短い", hira: "みじかい", nghia: "Ngắn" }, { tu: "短所", hira: "たんしょ", nghia: "Khuyết điểm" }] },
+    { id: 123, kanji: "明", han_viet: "MINH", nghia: "Sáng", onyomi: "mei, myou", kunyomi: "aka.rui", on_hira: "めい", kun_hira: "あかるい", vi_du: [{ tu: "明るい", hira: "あかるい", nghia: "Sáng sủa" }, { tu: "明日", hira: "あした", nghia: "Ngày mai" }] },
+    { id: 124, kanji: "暗", han_viet: "ÁM", nghia: "Tối", onyomi: "an", kunyomi: "kura.i", on_hira: "あん", kun_hira: "くらい", vi_du: [{ tu: "暗い", hira: "くらい", nghia: "Tối" }, { tu: "暗号", hira: "あんごう", nghia: "Mật mã" }] },
+    { id: 125, kanji: "広", han_viet: "QUẢNG", nghia: "Rộng", onyomi: "kou", kunyomi: "hiro.i", on_hira: "こう", kun_hira: "ひろい", vi_du: [{ tu: "広い", hira: "ひろい", nghia: "Rộng" }, { tu: "広場", hira: "ひろば", nghia: "Quảng trường" }] },
+    { id: 126, kanji: "多", han_viet: "ĐA", nghia: "Nhiều", onyomi: "ta", kunyomi: "oo.i", on_hira: "た", kun_hira: "おおい", vi_du: [{ tu: "多い", hira: "おおい", nghia: "Nhiều" }, { tu: "多数", hira: "たすう", nghia: "Đa số" }] },
+    { id: 127, kanji: "少", han_viet: "THIỂU/THIẾU", nghia: "Ít, một chút", onyomi: "shou", kunyomi: "suku.nai", on_hira: "しょう", kun_hira: "すくない", vi_du: [{ tu: "少ない", hira: "すくない", nghia: "Ít" }, { tu: "少し", hira: "すこし", nghia: "Một chút" }] },
+    { id: 128, kanji: "回", han_viet: "HỒI", nghia: "Vòng, lần", onyomi: "kai", kunyomi: "mawa.ru", on_hira: "かい", kun_hira: "まわる", vi_du: [{ tu: "回る", hira: "まわる", nghia: "Xoay" }, { tu: "一回", hira: "いっかい", nghia: "Một lần" }] },
+    { id: 129, kanji: "度", han_viet: "ĐỘ", nghia: "Lần, mức độ", onyomi: "do", kunyomi: "tabi", on_hira: "ど", kun_hira: "たび", vi_du: [{ tu: "三度", hira: "さんど", nghia: "Ba lần" }, { tu: "今度", hira: "こんど", nghia: "Lần này" }] },
+    { id: 130, kanji: "線", han_viet: "TUYẾN", nghia: "Đường kẻ, tuyến", onyomi: "sen", kunyomi: "suji", on_hira: "せん", kun_hira: "すじ", vi_du: [{ tu: "線", hira: "せん", nghia: "Đường kẻ" }, { tu: "新幹線", hira: "しんかんせん", nghia: "Tàu Shinkansen" }] },
+    { id: 131, kanji: "思", han_viet: "TƯ", nghia: "Nghĩ, nhớ", onyomi: "shi", kunyomi: "omo.u", on_hira: "し", kun_hira: "おもう", vi_du: [{ tu: "思う", hira: "おもう", nghia: "Nghĩ" }, { tu: "思い出", hira: "おもいで", nghia: "Kỷ niệm" }] },
+    { id: 132, kanji: "感", han_viet: "CẢM", nghia: "Cảm nhận", onyomi: "kan", kunyomi: "", on_hira: "かん", kun_hira: "", vi_du: [{ tu: "感じる", hira: "かんじる", nghia: "Cảm thấy" }, { tu: "感情", hira: "かんじょう", nghia: "Cảm xúc" }] },
+    { id: 133, kanji: "知", han_viet: "TRI/TRÍ", nghia: "Biết", onyomi: "chi", kunyomi: "shi.ru", on_hira: "ち", kun_hira: "しる", vi_du: [{ tu: "知る", hira: "しる", nghia: "Biết" }, { tu: "知識", hira: "ちしき", nghia: "Tri thức" }] },
+    { id: 134, kanji: "教", han_viet: "GIÁO", nghia: "Dạy", onyomi: "kyou", kunyomi: "oshi.eru", on_hira: "きょう", kun_hira: "おしえる", vi_du: [{ tu: "教える", hira: "おしえる", nghia: "Dạy" }, { tu: "教育", hira: "きょういく", nghia: "Giáo dục" }] },
+    { id: 135, kanji: "終", han_viet: "CHUNG", nghia: "Kết thúc", onyomi: "shuu", kunyomi: "o.waru", on_hira: "しゅう", kun_hira: "おわる", vi_du: [{ tu: "終わる", hira: "おわる", nghia: "Kết thúc" }, { tu: "終点", hira: "しゅうてん", nghia: "Điểm cuối" }] },
+    { id: 136, kanji: "始", han_viet: "THỦY", nghia: "Bắt đầu", onyomi: "shi", kunyomi: "haji.meru", on_hira: "し", kun_hira: "はじめる", vi_du: [{ tu: "始まる", hira: "はじまる", nghia: "Bắt đầu" }, { tu: "開始", hira: "かいし", nghia: "Khởi sự" }] },
+    { id: 137, kanji: "曜", han_viet: "DIỆU", nghia: "Ngày (trong tuần)", onyomi: "you", kunyomi: "", on_hira: "よう", kun_hira: "", vi_du: [{ tu: "日曜日", hira: "にちようび", nghia: "Chủ nhật" }, { tu: "曜日", hira: "ようび", nghia: "Thứ trong tuần" }] },
+    { id: 138, kanji: "運", han_viet: "VẬN", nghia: "Vận chuyển", onyomi: "un", kunyomi: "hako.bu", on_hira: "うん", kun_hira: "はこぶ", vi_du: [{ tu: "運ぶ", hira: "はこぶ", nghia: "Vận chuyển" }, { tu: "運動", hira: "うんどう", nghia: "Vận động" }] },
+    { id: 139, kanji: "転", han_viet: "CHUYỂN", nghia: "Lăn, chuyển động", onyomi: "ten", kunyomi: "koro.bu", on_hira: "てん", kun_hira: "ころぶ", vi_du: [{ tu: "運転", hira: "うんてん", nghia: "Lái xe" }, { tu: "自転車", hira: "じてんしゃ", nghia: "Xe đạp" }] },
+    { id: 140, kanji: "住", han_viet: "TRÚ", nghia: "Sống, ở", onyomi: "juu", kunyomi: "su.mu", on_hira: "じゅう", kun_hira: "すむ", vi_du: [{ tu: "住む", hira: "すむ", nghia: "Sống, ở" }, { tu: "住所", hira: "じゅうしょ", nghia: "Địa chỉ" }] },
+    { id: 141, kanji: "体", han_viet: "THỂ", nghia: "Cơ thể", onyomi: "tai, tei", kunyomi: "karada", on_hira: "たい", kun_hira: "からだ", vi_du: [{ tu: "体", hira: "からだ", nghia: "Cơ thể" }, { tu: "体育", hira: "たいいく", nghia: "Thể dục" }] },
+    { id: 142, kanji: "音", han_viet: "ÂM", nghia: "Âm thanh", onyomi: "on, in", kunyomi: "oto", on_hira: "おん", kun_hira: "おと", vi_du: [{ tu: "音", hira: "おと", nghia: "Âm thanh" }, { tu: "音楽", hira: "おんがく", nghia: "Âm nhạc" }] },
+    { id: 143, kanji: "楽", han_viet: "LẠC/NHẠC", nghia: "Vui vẻ, âm nhạc", onyomi: "gaku, raku", kunyomi: "tano.shii", on_hira: "がく", kun_hira: "たのしい", vi_du: [{ tu: "楽しい", hira: "たのしい", nghia: "Vui vẻ" }, { tu: "音楽", hira: "おんがく", nghia: "Âm nhạc" }] },
+    { id: 144, kanji: "公", han_viet: "CÔNG", nghia: "Công cộng", onyomi: "kou", kunyomi: "kimi", on_hira: "こう", kun_hira: "きみ", vi_du: [{ tu: "公園", hira: "こうえん", nghia: "Công viên" }, { tu: "公立", hira: "こうりつ", nghia: "Công lập" }] },
+    { id: 145, kanji: "園", han_viet: "VIÊN", nghia: "Vườn", onyomi: "en", kunyomi: "sono", on_hira: "えん", kun_hira: "その", vi_du: [{ tu: "公園", hira: "こうえん", nghia: "Công viên" }, { tu: "幼稚園", hira: "ようちえん", nghia: "Mẫu giáo" }] },
+    { id: 146, kanji: "京", han_viet: "KINH", nghia: "Kinh đô", onyomi: "kyou", kunyomi: "miyako", on_hira: "きょう", kun_hira: "みやこ", vi_du: [{ tu: "東京", hira: "とうきょう", nghia: "Tokyo" }, { tu: "京都", hira: "きょうと", nghia: "Kyoto" }] },
+    { id: 147, kanji: "都", han_viet: "ĐÔ", nghia: "Thủ đô", onyomi: "to, tsu", kunyomi: "miyako", on_hira: "と", kun_hira: "みやこ", vi_du: [{ tu: "都市", hira: "とし", nghia: "Thành phố" }, { tu: "首都", hira: "しゅと", nghia: "Thủ đô" }] },
+    { id: 148, kanji: "内", han_viet: "NỘI", nghia: "Bên trong", onyomi: "nai, dai", kunyomi: "uchi", on_hira: "ない", kun_hira: "うち", vi_du: [{ tu: "内側", hira: "うちがわ", nghia: "Mặt trong" }, { tu: "内容", hira: "ないよう", nghia: "Nội dung" }] },
+    { id: 149, kanji: "市", han_viet: "THỊ", nghia: "Thành phố, chợ", onyomi: "shi", kunyomi: "ichi", on_hira: "し", kun_hira: "いち", vi_du: [{ tu: "都市", hira: "とし", nghia: "Thành phố" }, { tu: "市場", hira: "いちば", nghia: "Chợ" }] },
+    { id: 150, kanji: "場", han_viet: "TRƯỜNG", nghia: "Địa điểm, nơi", onyomi: "jou", kunyomi: "ba", on_hira: "じょう", kun_hira: "ば", vi_du: [{ tu: "場所", hira: "ばしょ", nghia: "Địa điểm" }, { tu: "広場", hira: "ひろば", nghia: "Quảng trường" }] },
+    { id: 151, kanji: "地", han_viet: "ĐỊA", nghia: "Đất đai", onyomi: "chi, ji", kunyomi: "", on_hira: "ち", kun_hira: "", vi_du: [{ tu: "地下鉄", hira: "ちかてつ", nghia: "Tàu điện ngầm" }, { tu: "地震", hira: "じしん", nghia: "Động đất" }] },
+    { id: 152, kanji: "鉄", han_viet: "THIẾT", nghia: "Sắt", onyomi: "tetsu", kunyomi: "kurogane", on_hira: "てつ", kun_hira: "くろがね", vi_du: [{ tu: "地下鉄", hira: "ちかてつ", nghia: "Tàu điện ngầm" }, { tu: "鉄分", hira: "てつぶん", nghia: "Chất sắt" }] },
+    { id: 153, kanji: "海", han_viet: "HẢI", nghia: "Biển", onyomi: "kai", kunyomi: "umi", on_hira: "かい", kun_hira: "うみ", vi_du: [{ tu: "海", hira: "うみ", nghia: "Biển" }, { tu: "海外", hira: "かいがい", nghia: "Hải ngoại" }] },
+    { id: 154, kanji: "空", han_viet: "KHÔNG", nghia: "Trống, bầu trời", onyomi: "kuu", kunyomi: "sora, a.ku", on_hira: "くう", kun_hira: "そら", vi_du: [{ tu: "空", hira: "そら", nghia: "Bầu trời" }, { tu: "空港", hira: "くうこう", nghia: "Sân bay" }] },
+    { id: 155, kanji: "港", han_viet: "CẢNG", nghia: "Cảng", onyomi: "kou", kunyomi: "minato", on_hira: "こう", kun_hira: "みなと", vi_du: [{ tu: "空港", hira: "くうこう", nghia: "Sân bay" }, { tu: "港", hira: "みなと", nghia: "Cảng" }] },
+    { id: 156, kanji: "度", han_viet: "ĐỘ", nghia: "Lần, mức độ", onyomi: "do", kunyomi: "tabi", on_hira: "ど", kun_hira: "たび", vi_du: [{ tu: "三度", hira: "さんど", nghia: "Ba lần" }, { tu: "今度", hira: "こんど", nghia: "Lần này" }] },
+    { id: 157, kanji: "終", han_viet: "CHUNG", nghia: "Kết thúc", onyomi: "shuu", kunyomi: "o.waru", on_hira: "しゅう", kun_hira: "おわる", vi_du: [{ tu: "終わる", hira: "おわる", nghia: "Kết thúc" }, { tu: "終点", hira: "しゅうてん", nghia: "Điểm cuối" }] },
+    { id: 158, kanji: "始", han_viet: "THỦY", nghia: "Bắt đầu", onyomi: "shi", kunyomi: "haji.meru", on_hira: "し", kun_hira: "はじまる", vi_du: [{ tu: "始まる", hira: "はじまる", nghia: "Bắt đầu" }, { tu: "開始", hira: "かいし", nghia: "Khởi sự" }] },
+    { id: 159, kanji: "勉", han_viet: "MIỄN", nghia: "Cố gắng", onyomi: "ben", kunyomi: "tsuto.meru", on_hira: "べん", kun_hira: "つとめる", vi_du: [{ tu: "勉強", hira: "べんきょう", nghia: "Học (Study)" }, { tu: "勤勉", hira: "きんべん", nghia: "Siêng năng" }] },
+    { id: 160, kanji: "強", han_viet: "CƯỜNG/CƯỠNG", nghia: "Mạnh", onyomi: "kyou", kunyomi: "tsuyo.i", on_hira: "きょう", kun_hira: "つよい", vi_du: [{ tu: "強い", hira: "つよい", nghia: "Mạnh" }, { tu: "勉強", hira: "べんきょう", nghia: "Học (Study)" }] },
+// DỮ LIỆU KANJI N4 TIẾP THEO (ID 161 - 240)
+    { id: 161, kanji: "強", han_viet: "CƯỜNG/CƯỠNG", nghia: "Mạnh", onyomi: "kyou", kunyomi: "tsuyo.i", on_hira: "きょう", kun_hira: "つよい", vi_du: [{ tu: "強い", hira: "つよい", nghia: "Mạnh" }, { tu: "強盗", hira: "ごうとう", nghia: "Tên cướp" }] },
+    { id: 162, kanji: "弱", han_viet: "NHƯỢC", nghia: "Yếu", onyomi: "jaku", kunyomi: "yowa.i", on_hira: "じゃく", kun_hira: "よわい", vi_du: [{ tu: "弱い", hira: "よわい", nghia: "Yếu" }, { tu: "弱点", hira: "じゃくてん", nghia: "Điểm yếu" }] },
+    { id: 163, kanji: "重", han_viet: "TRỌNG/TRÙNG", nghia: "Nặng", onyomi: "juu", kunyomi: "omo.i", on_hira: "じゅう", kun_hira: "おもい", vi_du: [{ tu: "重い", hira: "おもい", nghia: "Nặng" }, { tu: "体重", hira: "たいじゅう", nghia: "Cân nặng" }] },
+    { id: 164, kanji: "軽", han_viet: "KHINH", nghia: "Nhẹ", onyomi: "kei", kunyomi: "karu.i", on_hira: "けい", kun_hira: "かるい", vi_du: [{ tu: "軽い", hira: "かるい", nghia: "Nhẹ" }, { tu: "軽食", hira: "けいしょく", nghia: "Bữa ăn nhẹ" }] },
+    { id: 165, kanji: "太", han_viet: "THÁI", nghia: "Béo, dày", onyomi: "tai", kunyomi: "futo.i", on_hira: "たい", kun_hira: "ふとい", vi_du: [{ tu: "太い", hira: "ふとい", nghia: "Béo, dày" }, { tu: "太陽", hira: "たいよう", nghia: "Mặt trời" }] },
+    { id: 166, kanji: "細", han_viet: "TẾ", nghia: "Gầy, mảnh", onyomi: "sai", kunyomi: "hoso.i", on_hira: "さい", kun_hira: "ほそい", vi_du: [{ tu: "細い", hira: "ほそい", nghia: "Mảnh, gầy" }, { tu: "細かい", hira: "こまかい", nghia: "Chi tiết" }] },
+    { id: 167, kanji: "室", han_viet: "THẤT", nghia: "Phòng", onyomi: "shitsu", kunyomi: "muro", on_hira: "しつ", kun_hira: "むろ", vi_du: [{ tu: "教室", hira: "きょうしつ", nghia: "Phòng học" }, { tu: "研究室", hira: "けんきゅうしつ", nghia: "Phòng nghiên cứu" }] },
+    { id: 168, kanji: "家", han_viet: "GIA", nghia: "Nhà", onyomi: "ka, ke", kunyomi: "ie, ya", on_hira: "か", kun_hira: "いえ", vi_du: [{ tu: "家族", hira: "かぞく", nghia: "Gia đình" }, { tu: "家", hira: "いえ", nghia: "Nhà" }] },
+    { id: 169, kanji: "族", han_viet: "TỘC", nghia: "Họ hàng, tộc", onyomi: "zoku", kunyomi: "yazoku", on_hira: "ぞく", kun_hira: "やぞく", vi_du: [{ tu: "家族", hira: "かぞく", nghia: "Gia đình" }, { tu: "民族", hira: "みんぞく", nghia: "Dân tộc" }] },
+    { id: 170, kanji: "旅", han_viet: "LỮ", nghia: "Du lịch", onyomi: "ryo", kunyomi: "tabi", on_hira: "りょ", kun_hira: "たび", vi_du: [{ tu: "旅行", hira: "りょこう", nghia: "Du lịch" }, { tu: "旅館", hira: "りょかん", nghia: "Quán trọ kiểu Nhật" }] },
+    { id: 171, kanji: "館", han_viet: "QUÁN", nghia: "Tòa nhà, quán", onyomi: "kan", kunyomi: "yakata", on_hira: "かん", kun_hira: "やかた", vi_du: [{ tu: "図書館", hira: "としょかん", nghia: "Thư viện" }, { tu: "博物館", hira: "はくぶつかん", nghia: "Bảo tàng" }] },
+    { id: 172, kanji: "映", han_viet: "ÁNH", nghia: "Phản chiếu", onyomi: "ei", kunyomi: "utsu.ru", on_hira: "えい", kun_hira: "うつる", vi_du: [{ tu: "映画", hira: "えいが", nghia: "Phim" }, { tu: "映す", hira: "うつす", nghia: "Phản chiếu" }] },
+    { id: 173, kanji: "画", han_viet: "HỌA/HOẠCH", nghia: "Vẽ, hình ảnh", onyomi: "ga, kaku", kunyomi: "e", on_hira: "が", kun_hira: "え", vi_du: [{ tu: "映画", hira: "えいが", nghia: "Phim" }, { tu: "計画", hira: "けいかく", nghia: "Kế hoạch" }] },
+    { id: 174, kanji: "紙", han_viet: "CHỈ", nghia: "Giấy", onyomi: "shi", kunyomi: "kami", on_hira: "し", kun_hira: "かみ", vi_du: [{ tu: "紙", hira: "かみ", nghia: "Giấy" }, { tu: "手紙", hira: "てがみ", nghia: "Thư" }] },
+    { id: 175, kanji: "切", han_viet: "THIẾT", nghia: "Cắt", onyomi: "setsu", kunyomi: "ki.ru", on_hira: "せつ", kun_hira: "きる", vi_du: [{ tu: "切る", hira: "きる", nghia: "Cắt" }, { tu: "切手", hira: "きって", nghia: "Tem" }] },
+    { id: 176, kanji: "手", han_viet: "THỦ", nghia: "Tay", onyomi: "shu", kunyomi: "te", on_hira: "しゅ", kun_hira: "て", vi_du: [{ tu: "手紙", hira: "てがみ", nghia: "Thư" }, { tu: "上手", hira: "じょうず", nghia: "Giỏi" }] },
+    { id: 177, kanji: "便", han_viet: "TIỆN", nghia: "Tiện lợi, thư", onyomi: "ben, bin", kunyomi: "tayori", on_hira: "べん", kun_hira: "たより", vi_du: [{ tu: "便利", hira: "べんり", nghia: "Tiện lợi" }, { tu: "郵便局", hira: "ゆうびんきょく", nghia: "Bưu điện" }] },
+    { id: 178, kanji: "利", han_viet: "LỢI", nghia: "Lợi ích", onyomi: "ri", kunyomi: "ki.ku", on_hira: "り", kun_hira: "きく", vi_du: [{ tu: "便利", hira: "べんり", nghia: "Tiện lợi" }, { tu: "利用", hira: "りよう", nghia: "Sử dụng" }] },
+    { id: 179, kanji: "送", han_viet: "TỐNG", nghia: "Gửi", onyomi: "sou", kunyomi: "oku.ru", on_hira: "そう", kun_hira: "おくる", vi_du: [{ tu: "送る", hira: "おくる", nghia: "Gửi" }, { tu: "放送", hira: "ほうそう", nghia: "Phát sóng" }] },
+    { id: 180, kanji: "立", han_viet: "LẬP", nghia: "Đứng", onyomi: "ritsu", kunyomi: "ta.tsu", on_hira: "りつ", kun_hira: "たつ", vi_du: [{ tu: "立つ", hira: "たつ", nghia: "Đứng" }, { tu: "国立", hira: "こくりつ", nghia: "Quốc lập" }] },
+    { id: 181, kanji: "私", han_viet: "TƯ", nghia: "Tôi", onyomi: "shi", kunyomi: "watakushi, watashi", on_hira: "し", kun_hira: "わたし", vi_du: [{ tu: "私", hira: "わたし", nghia: "Tôi" }, { tu: "私立", hira: "しりつ", nghia: "Tư lập" }] },
+    { id: 182, kanji: "彼", han_viet: "BỈ", nghia: "Anh ấy, kia", onyomi: "hi", kunyomi: "kare", on_hira: "ひ", kun_hira: "かれ", vi_du: [{ tu: "彼", hira: "かれ", nghia: "Anh ấy" }, { tu: "彼ら", hira: "かれら", nghia: "Bọn họ" }] },
+    { id: 183, kanji: "方", han_viet: "PHƯƠNG", nghia: "Phương hướng, vị", onyomi: "hou", kunyomi: "kata", on_hira: "ほう", kun_hira: "かた", vi_du: [{ tu: "方", hira: "かた", nghia: "Vị (kính ngữ)" }, { tu: "方法", hira: "ほうほう", nghia: "Phương pháp" }] },
+    { id: 184, kanji: "員", han_viet: "VIÊN", nghia: "Thành viên", onyomi: "in", kunyomi: "", on_hira: "いん", kun_hira: "", vi_du: [{ tu: "店員", hira: "てんいん", nghia: "Nhân viên cửa hàng" }, { tu: "会員", hira: "かいいん", nghia: "Hội viên" }] },
+    { id: 185, kanji: "医", han_viet: "Y", nghia: "Y học", onyomi: "i", kunyomi: "", on_hira: "い", kun_hira: "", vi_du: [{ tu: "医者", hira: "いしゃ", nghia: "Bác sĩ" }, { tu: "医学", hira: "いがく", nghia: "Y học" }] },
+    { id: 186, kanji: "者", han_viet: "GIẢ", nghia: "Người", onyomi: "sha", kunyomi: "mono", on_hira: "しゃ", kun_hira: "もの", vi_du: [{ tu: "医者", hira: "いしゃ", nghia: "Bác sĩ" }, { tu: "学者", hira: "がくしゃ", nghia: "Học giả" }] },
+    { id: 187, kanji: "前", han_viet: "TIỀN", nghia: "Trước", onyomi: "zen", kunyomi: "mae", on_hira: "ぜん", kun_hira: "まえ", vi_du: [{ tu: "前", hira: "まえ", nghia: "Trước" }, { tu: "午前", hira: "ごぜん", nghia: "Buổi sáng (AM)" }] },
+    { id: 188, kanji: "後", han_viet: "HẬU", nghia: "Sau", onyomi: "go, kou", kunyomi: "ato, ushiro", on_hira: "ご", kun_hira: "うしろ", vi_du: [{ tu: "後ろ", hira: "うしろ", nghia: "Phía sau" }, { tu: "午後", hira: "ごご", nghia: "Buổi chiều (PM)" }] },
+    { id: 189, kanji: "午", han_viet: "NGỌ", nghia: "Buổi trưa", onyomi: "go", kunyomi: "uma", on_hira: "ご", kun_hira: "うま", vi_du: [{ tu: "午前", hira: "ごぜん", nghia: "Buổi sáng (AM)" }, { tu: "正午", hira: "しょうご", nghia: "Chính ngọ" }] },
+    { id: 190, kanji: "元", han_viet: "NGUYÊN", nghia: "Gốc, ban đầu", onyomi: "gen, gan", kunyomi: "moto", on_hira: "げん", kun_hira: "もと", vi_du: [{ tu: "元気", hira: "げんき", nghia: "Khỏe mạnh" }, { tu: "元日", hira: "がんじつ", nghia: "Mồng một Tết" }] },
+    { id: 191, kanji: "病", han_viet: "BỆNH", nghia: "Bệnh tật", onyomi: "byou", kunyomi: "yamai", on_hira: "びょう", kun_hira: "やまい", vi_du: [{ tu: "病院", hira: "びょういん", nghia: "Bệnh viện" }, { tu: "病気", hira: "びょうき", nghia: "Bệnh tật" }] },
+    { id: 192, kanji: "院", han_viet: "VIỆN", nghia: "Viện", onyomi: "in", kunyomi: "", on_hira: "いん", kun_hira: "", vi_du: [{ tu: "病院", hira: "びょういん", nghia: "Bệnh viện" }, { tu: "大学院", hira: "だいがくいん", nghia: "Cao học" }] },
+    { id: 193, kanji: "明", han_viet: "MINH", nghia: "Sáng", onyomi: "mei, myou", kunyomi: "aka.rui", on_hira: "めい", kun_hira: "あかるい", vi_du: [{ tu: "明るい", hira: "あかるい", nghia: "Sáng sủa" }, { tu: "明日", hira: "あした", nghia: "Ngày mai" }] },
+    { id: 194, kanji: "昼", han_viet: "TRÚ", nghia: "Buổi trưa", onyomi: "chuu", kunyomi: "hiru", on_hira: "ちゅう", kun_hira: "ひる", vi_du: [{ tu: "昼", hira: "ひる", nghia: "Buổi trưa" }, { tu: "昼食", hira: "ちゅうしょく", nghia: "Bữa trưa" }] },
+    { id: 195, kanji: "夜", han_viet: "DẠ", nghia: "Buổi tối", onyomi: "ya", kunyomi: "yoru, yo", on_hira: "や", kun_hira: "よる", vi_du: [{ tu: "夜", hira: "よる", nghia: "Buổi tối" }, { tu: "今夜", hira: "こんや", nghia: "Tối nay" }] },
+    { id: 196, kanji: "曜", han_viet: "DIỆU", nghia: "Ngày (trong tuần)", onyomi: "you", kunyomi: "", on_hira: "よう", kun_hira: "", vi_du: [{ tu: "曜日", hira: "ようび", nghia: "Thứ trong tuần" }, { tu: "日曜日", hira: "にちようび", nghia: "Chủ nhật" }] },
+    { id: 197, kanji: "名", han_viet: "DANH", nghia: "Tên", onyomi: "mei, myou", kunyomi: "na", on_hira: "めい", kun_hira: "な", vi_du: [{ tu: "名前", hira: "なまえ", nghia: "Tên" }, { tu: "有名", hira: "ゆうめい", nghia: "Nổi tiếng" }] },
+    { id: 198, kanji: "白", han_viet: "BẠCH", nghia: "Trắng", onyomi: "haku", kunyomi: "shiro", on_hira: "はく", kun_hira: "しろ", vi_du: [{ tu: "白い", hira: "しろい", nghia: "Màu trắng" }, { tu: "白鳥", hira: "はくちょう", nghia: "Thiên nga" }] },
+    { id: 199, kanji: "黒", han_viet: "HẮC", nghia: "Đen", onyomi: "koku", kunyomi: "kuro", on_hira: "こく", kun_hira: "くろ", vi_du: [{ tu: "黒い", hira: "くろい", nghia: "Màu đen" }, { tu: "黒字", hira: "くろじ", nghia: "Lãi" }] },
+    { id: 200, kanji: "赤", han_viet: "XÍCH", nghia: "Đỏ", onyomi: "seki", kunyomi: "aka", on_hira: "せき", kun_hira: "あか", vi_du: [{ tu: "赤い", hira: "あかい", nghia: "Màu đỏ" }, { tu: "赤道", hira: "せきどう", nghia: "Xích đạo" }] },
+    { id: 201, kanji: "青", han_viet: "THANH", nghia: "Xanh dương", onyomi: "sei, shou", kunyomi: "ao", on_hira: "せい", kun_hira: "あお", vi_du: [{ tu: "青い", hira: "あおい", nghia: "Màu xanh" }, { tu: "青春", hira: "せいしゅん", nghia: "Tuổi trẻ" }] },
+    { id: 202, kanji: "春", han_viet: "XUÂN", nghia: "Mùa xuân", onyomi: "shun", kunyomi: "haru", on_hira: "しゅん", kun_hira: "はる", vi_du: [{ tu: "春", hira: "はる", nghia: "Mùa xuân" }, { tu: "春休み", hira: "はるやすみ", nghia: "Nghỉ xuân" }] },
+    { id: 203, kanji: "夏", han_viet: "HẠ", nghia: "Mùa hè", onyomi: "ka, ge", kunyomi: "natsu", on_hira: "か", kun_hira: "なつ", vi_du: [{ tu: "夏", hira: "なつ", nghia: "Mùa hè" }, { tu: "夏休み", hira: "なつやすみ", nghia: "Nghỉ hè" }] },
+    { id: 204, kanji: "秋", han_viet: "THU", nghia: "Mùa thu", onyomi: "shuu", kunyomi: "aki", on_hira: "しゅう", kun_hira: "あき", vi_du: [{ tu: "秋", hira: "あき", nghia: "Mùa thu" }, { tu: "秋分", hira: "しゅうぶん", nghia: "Thu phân" }] },
+    { id: 205, kanji: "冬", han_viet: "ĐÔNG", nghia: "Mùa đông", onyomi: "tou", kunyomi: "fuyu", on_hira: "とう", kun_hira: "ふゆ", vi_du: [{ tu: "冬", hira: "ふゆ", nghia: "Mùa đông" }, { tu: "冬休み", hira: "ふゆやすみ", nghia: "Nghỉ đông" }] },
+    { id: 206, kanji: "暑", han_viet: "THỬ", nghia: "Nóng (thời tiết)", onyomi: "sho", kunyomi: "atsu.i", on_hira: "しょ", kun_hira: "あつい", vi_du: [{ tu: "暑い", hira: "あつい", nghia: "Nóng" }, { tu: "暑中", hira: "しょちゅう", nghia: "Giữa hè" }] },
+    { id: 207, kanji: "寒", han_viet: "HÀN", nghia: "Lạnh (thời tiết)", onyomi: "kan", kunyomi: "samu.i", on_hira: "かん", kun_hira: "さむい", vi_du: [{ tu: "寒い", hira: "さむい", nghia: "Lạnh" }, { tu: "寒気", hira: "かんき", nghia: "Không khí lạnh" }] },
+    { id: 208, kanji: "近", han_viet: "CẬN", nghia: "Gần", onyomi: "kin", kunyomi: "chika.i", on_hira: "きん", kun_hira: "ちかい", vi_du: [{ tu: "近い", hira: "ちかい", nghia: "Gần" }, { tu: "近所", hira: "きんじょ", nghia: "Hàng xóm" }] },
+    { id: 209, kanji: "遠", han_viet: "VIỄN", nghia: "Xa", onyomi: "en", kunyomi: "too.i", on_hira: "えん", kun_hira: "とおい", vi_du: [{ tu: "遠い", hira: "とおい", nghia: "Xa" }, { tu: "遠足", hira: "えんそく", nghia: "Dã ngoại" }] },
+    { id: 210, kanji: "新", han_viet: "TÂN", nghia: "Mới", onyomi: "shin", kunyomi: "atara.shii", on_hira: "しん", kun_hira: "あたらしい", vi_du: [{ tu: "新しい", hira: "あたらしい", nghia: "Mới" }, { tu: "新聞", hira: "しんぶん", nghia: "Báo" }] },
+    { id: 211, kanji: "古", han_viet: "CỔ", nghia: "Cũ", onyomi: "ko", kunyomi: "furu.i", on_hira: "こ", kun_hira: "ふるい", vi_du: [{ tu: "古い", hira: "ふるい", nghia: "Cũ" }, { tu: "中古", hira: "ちゅうこ", nghia: "Đã qua sử dụng" }] },
+    { id: 212, kanji: "多", han_viet: "ĐA", nghia: "Nhiều", onyomi: "ta", kunyomi: "oo.i", on_hira: "た", kun_hira: "おおい", vi_du: [{ tu: "多い", hira: "おおい", nghia: "Nhiều" }, { tu: "多数", hira: "たすう", nghia: "Đa số" }] },
+    { id: 213, kanji: "少", han_viet: "THIỂU/THIẾU", nghia: "Ít, một chút", onyomi: "shou", kunyomi: "suku.nai", on_hira: "しょう", kun_hira: "すくない", vi_du: [{ tu: "少ない", hira: "すくない", nghia: "Ít" }, { tu: "少し", hira: "すこし", nghia: "Một chút" }] },
+    { id: 214, kanji: "悪", han_viet: "ÁC", nghia: "Xấu", onyomi: "aku, o", kunyomi: "waru.i", on_hira: "あく", kun_hira: "わるい", vi_du: [{ tu: "悪い", hira: "わるい", nghia: "Xấu" }, { tu: "悪口", hira: "わるぐち", nghia: "Nói xấu" }] },
+    { id: 215, kanji: "良", han_viet: "LƯƠNG", nghia: "Tốt", onyomi: "ryou", kunyomi: "yo.i", on_hira: "りょう", kun_hira: "よい", vi_du: [{ tu: "良い", hira: "よい", nghia: "Tốt" }, { tu: "良心", hira: "りょうしん", nghia: "Lương tâm" }] },
+    { id: 216, kanji: "広", han_viet: "QUẢNG", nghia: "Rộng", onyomi: "kou", kunyomi: "hiro.i", on_hira: "こう", kun_hira: "ひろい", vi_du: [{ tu: "広い", hira: "ひろい", nghia: "Rộng" }, { tu: "広告", hira: "こうこく", nghia: "Quảng cáo" }] },
+    { id: 217, kanji: "立", han_viet: "LẬP", nghia: "Đứng", onyomi: "ritsu", kunyomi: "ta.tsu", on_hira: "りつ", kun_hira: "たつ", vi_du: [{ tu: "立つ", hira: "たつ", nghia: "Đứng" }, { tu: "国立", hira: "こくりつ", nghia: "Quốc lập" }] },
+    { id: 218, kanji: "自", han_viet: "TỰ", nghia: "Tự mình", onyomi: "ji, shi", kunyomi: "mizuka.ra", on_hira: "じ", kun_hira: "みずから", vi_du: [{ tu: "自分", hira: "じぶん", nghia: "Bản thân" }, { tu: "自動", hira: "じどう", nghia: "Tự động" }] },
+    { id: 219, kanji: "動", han_viet: "ĐỘNG", nghia: "Di chuyển", onyomi: "dou", kunyomi: "ugo.ku", on_hira: "どう", kun_hira: "うごく", vi_du: [{ tu: "動く", hira: "うごく", nghia: "Di chuyển" }, { tu: "動物", hira: "どうぶつ", nghia: "Động vật" }] },
+    { id: 220, kanji: "物", han_viet: "VẬT", nghia: "Vật chất, đồ vật", onyomi: "butsu, motsu", kunyomi: "mono", on_hira: "ぶつ", kun_hira: "もの", vi_du: [{ tu: "物", hira: "もの", nghia: "Đồ vật" }, { tu: "買い物", hira: "かいもの", nghia: "Mua sắm" }] },
+    { id: 221, kanji: "使", han_viet: "SỬ/SỨ", nghia: "Sử dụng", onyomi: "shi", kunyomi: "tsuka.u", on_hira: "し", kun_hira: "つかう", vi_du: [{ tu: "使う", hira: "つかう", nghia: "Sử dụng" }, { tu: "大使", hira: "たいし", nghia: "Đại sứ" }] },
+    { id: 222, kanji: "度", han_viet: "ĐỘ", nghia: "Lần, mức độ", onyomi: "do", kunyomi: "tabi", on_hira: "ど", kun_hira: "たび", vi_du: [{ tu: "三度", hira: "さんど", nghia: "Ba lần" }, { tu: "今度", hira: "こんど", nghia: "Lần này" }] },
+    { id: 223, kanji: "料", han_viet: "LIỆU", nghia: "Nguyên liệu, phí", onyomi: "ryou", kunyomi: "", on_hira: "りょう", kun_hira: "", vi_du: [{ tu: "料理", hira: "りょうり", nghia: "Món ăn" }, { tu: "料金", hira: "りょうきん", nghia: "Chi phí" }] },
+    { id: 224, kanji: "理", han_viet: "LÝ", nghia: "Lý do, logic", onyomi: "ri", kunyomi: "kotowari", on_hira: "り", kun_hira: "ことわり", vi_du: [{ tu: "理由", hira: "りゆう", nghia: "Lý do" }, { tu: "物理", hira: "ぶつり", nghia: "Vật lý" }] },
+    { id: 225, kanji: "主", han_viet: "CHỦ", nghia: "Chủ nhân", onyomi: "shu", kunyomi: "nushi", on_hira: "しゅ", kun_hira: "ぬし", vi_du: [{ tu: "主人", hira: "しゅじん", nghia: "Chồng/Chủ nhân" }, { tu: "主に", hira: "おもに", nghia: "Chủ yếu" }] },
+    { id: 226, kanji: "切", han_viet: "THIẾT", nghia: "Cắt", onyomi: "setsu", kunyomi: "ki.ru", on_hira: "せつ", kun_hira: "きる", vi_du: [{ tu: "切る", hira: "きる", nghia: "Cắt" }, { tu: "切手", hira: "きって", nghia: "Tem" }] },
+    { id: 227, kanji: "重", han_viet: "TRỌNG/TRÙNG", nghia: "Nặng", onyomi: "juu", kunyomi: "omo.i", on_hira: "じゅう", kun_hira: "おもい", vi_du: [{ tu: "重い", hira: "おもい", nghia: "Nặng" }, { tu: "大切", hira: "たいせつ", nghia: "Quan trọng" }] },
+    { id: 228, kanji: "軽", han_viet: "KHINH", nghia: "Nhẹ", onyomi: "kei", kunyomi: "karu.i", on_hira: "けい", kun_hira: "かるい", vi_du: [{ tu: "軽い", hira: "かるい", nghia: "Nhẹ" }, { tu: "気軽", hira: "きがる", nghia: "Thoải mái" }] },
+    { id: 229, kanji: "教", han_viet: "GIÁO", nghia: "Dạy", onyomi: "kyou", kunyomi: "oshi.eru", on_hira: "きょう", kun_hira: "おしえる", vi_du: [{ tu: "教える", hira: "おしえる", nghia: "Dạy" }, { tu: "教室", hira: "きょうしつ", nghia: "Phòng học" }] },
+    { id: 230, kanji: "室", han_viet: "THẤT", nghia: "Phòng", onyomi: "shitsu", kunyomi: "muro", on_hira: "しつ", kun_hira: "むろ", vi_du: [{ tu: "教室", hira: "きょうしつ", nghia: "Phòng học" }, { tu: "地下室", hira: "ちかしつ", nghia: "Tầng hầm" }] },
+    { id: 231, kanji: "戸", han_viet: "HỘ", nghia: "Cửa", onyomi: "ko", kunyomi: "to", on_hira: "こ", kun_hira: "と", vi_du: [{ tu: "戸", hira: "と", nghia: "Cửa (kiểu Nhật)" }, { tu: "戸外", hira: "こがい", nghia: "Ngoài trời" }] },
+    { id: 232, kanji: "窓", han_viet: "SONG", nghia: "Cửa sổ", onyomi: "sou", kunyomi: "mado", on_hira: "そう", kun_hira: "まど", vi_du: [{ tu: "窓", hira: "まど", nghia: "Cửa sổ" }, { tu: "窓口", hira: "まどぐち", nghia: "Quầy giao dịch" }] },
+    { id: 233, kanji: "開", han_viet: "KHAI", nghia: "Mở", onyomi: "kai", kunyomi: "a.ku, hira.ku", on_hira: "かい", kun_hira: "あける", vi_du: [{ tu: "開ける", hira: "あける", nghia: "Mở (tha động từ)" }, { tu: "開店", hira: "かいてん", nghia: "Mở cửa hàng" }] },
+    { id: 234, kanji: "閉", han_viet: "BẾ", nghia: "Đóng", onyomi: "hei", kunyomi: "shi.meru, to.jiru", on_hira: "へい", kun_hira: "しめる", vi_du: [{ tu: "閉める", hira: "しめる", nghia: "Đóng (tha động từ)" }, { tu: "閉店", hira: "へいてん", nghia: "Đóng cửa hàng" }] },
+    { id: 235, kanji: "答", han_viet: "ĐÁP", nghia: "Trả lời", onyomi: "tou", kunyomi: "kota.eru", on_hira: "とう", kun_hira: "こたえる", vi_du: [{ tu: "答える", hira: "こたえる", nghia: "Trả lời" }, { tu: "解答", hira: "かいとう", nghia: "Đáp án" }] },
+    { id: 236, kanji: "問", han_viet: "VẤN", nghia: "Hỏi", onyomi: "mon", kunyomi: "to.u", on_hira: "もん", kun_hira: "とう", vi_du: [{ tu: "問う", hira: "とう", nghia: "Hỏi" }, { tu: "問題", hira: "もんだい", nghia: "Vấn đề" }] },
+    { id: 237, kanji: "題", han_viet: "ĐỀ", nghia: "Đề tài, vấn đề", onyomi: "dai", kunyomi: "kada", on_hira: "だい", kun_hira: "かだ", vi_du: [{ tu: "問題", hira: "もんだい", nghia: "Vấn đề" }, { tu: "宿題", hira: "しゅくだい", nghia: "Bài tập về nhà" }] },
+    { id: 238, kanji: "意", han_viet: "Ý", nghia: "Ý chí, ý nghĩa", onyomi: "i", kunyomi: "kokorozashi", on_hira: "い", kun_hira: "こころざし", vi_du: [{ tu: "意味", hira: "いみ", nghia: "Ý nghĩa" }, { tu: "意見", hira: "いけん", nghia: "Ý kiến" }] },
+    { id: 239, kanji: "味", han_viet: "VỊ", nghia: "Hương vị", onyomi: "mi", kunyomi: "aji", on_hira: "み", kun_hira: "あじ", vi_du: [{ tu: "味", hira: "あじ", nghia: "Vị" }, { tu: "意味", hira: "いみ", nghia: "Ý nghĩa" }] },
+    { id: 240, kanji: "様", han_viet: "DẠNG", nghia: "Cách thức, vị (kính ngữ)", onyomi: "you", kunyomi: "sama", on_hira: "よう", kun_hira: "さま", vi_du: [{ tu: "様", hira: "さま", nghia: "Ngài (kính ngữ)" }, { tu: "様子", hira: "ようす", nghia: "Trạng thái" }] },
+    { id: 241, kanji: "写", han_viet: "TẢ", nghia: "Chụp, chép", onyomi: "sha", kunyomi: "utsu.su", on_hira: "しゃ", kun_hira: "うつす", vi_du: [{ tu: "写す", hira: "うつす", nghia: "Chụp/Sao chép" }, { tu: "写真", hira: "しゃしん", nghia: "Bức ảnh" }] },
+    { id: 242, kanji: "真", han_viet: "CHÂN", nghia: "Thật, chân thật", onyomi: "shin", kunyomi: "ma", on_hira: "しん", kun_hira: "ま", vi_du: [{ tu: "写真", hira: "しゃしん", nghia: "Bức ảnh" }, { tu: "真実", hira: "しんじつ", nghia: "Sự thật" }] },
+    { id: 243, kanji: "待", han_viet: "ĐÃI", nghia: "Chờ", onyomi: "tai", kunyomi: "ma.tsu", on_hira: "たい", kun_hira: "まつ", vi_du: [{ tu: "待つ", hira: "まつ", nghia: "Chờ đợi" }, { tu: "招待", hira: "しょうたい", nghia: "Lời mời" }] },
+    { id: 244, kanji: "時", han_viet: "THỜI/THÌ", nghia: "Thời gian, giờ", onyomi: "ji", kunyomi: "toki", on_hira: "じ", kun_hira: "とき", vi_du: [{ tu: "時間", hira: "じかん", nghia: "Thời gian" }, { tu: "時計", hira: "とけい", nghia: "Đồng hồ" }] },
+    { id: 245, kanji: "計", han_viet: "KẾ", nghia: "Đo lường, tính toán", onyomi: "kei", kunyomi: "haka.ru", on_hira: "けい", kun_hira: "はかる", vi_du: [{ tu: "時計", hira: "とけい", nghia: "Đồng hồ" }, { tu: "計算", hira: "けいさん", nghia: "Tính toán" }] },
+    { id: 246, kanji: "題", han_viet: "ĐỀ", nghia: "Đề tài, vấn đề", onyomi: "dai", kunyomi: "kada", on_hira: "だい", kun_hira: "かだい", vi_du: [{ tu: "問題", hira: "もんだい", nghia: "Vấn đề" }, { tu: "話題", hira: "わだい", nghia: "Chủ đề" }] },
+    { id: 247, kanji: "作", han_viet: "TÁC", nghia: "Làm, chế tạo", onyomi: "saku", kunyomi: "tsuku.ru", on_hira: "さく", kun_hira: "つくる", vi_du: [{ tu: "作る", hira: "つくる", nghia: "Làm, chế tạo" }, { tu: "作文", hira: "さくぶん", nghia: "Bài văn" }] },
+    { id: 248, kanji: "泳", han_viet: "VỊNH", nghia: "Bơi", onyomi: "ei", kunyomi: "oyo.gu", on_hira: "えい", kun_hira: "およぐ", vi_du: [{ tu: "泳ぐ", hira: "およぐ", nghia: "Bơi" }, { tu: "水泳", hira: "すいえい", nghia: "Bơi lội" }] },
+    { id: 249, kanji: "店", han_viet: "ĐIẾM", nghia: "Cửa hàng", onyomi: "ten", kunyomi: "mise", on_hira: "てん", kun_hira: "みせ", vi_du: [{ tu: "店", hira: "みせ", nghia: "Cửa hàng" }, { tu: "喫茶店", hira: "きっさてん", nghia: "Quán trà" }] },
+    { id: 250, kanji: "買", han_viet: "MÃI", nghia: "Mua", onyomi: "bai", kunyomi: "ka.u", on_hira: "ばい", kun_hira: "かう", vi_du: [{ tu: "買う", hira: "かう", nghia: "Mua" }, { tu: "買い物", hira: "かいもの", nghia: "Mua sắm" }] },
+    { id: 251, kanji: "売", han_viet: "MẠI", nghia: "Bán", onyomi: "bai", kunyomi: "u.ru", on_hira: "ばい", kun_hira: "うる", vi_du: [{ tu: "売る", hira: "うる", nghia: "Bán" }, { tu: "売店", hira: "ばいてん", nghia: "Quầy bán hàng" }] },
+    { id: 252, kanji: "道", han_viet: "ĐẠO", nghia: "Con đường", onyomi: "dou", kunyomi: "michi", on_hira: "どう", kun_hira: "みち", vi_du: [{ tu: "道", hira: "みち", nghia: "Con đường" }, { tu: "茶道", hira: "さどう", nghia: "Trà đạo" }] },
+    { id: 253, kanji: "教", han_viet: "GIÁO", nghia: "Dạy", onyomi: "kyou", kunyomi: "oshi.eru", on_hira: "きょう", kun_hira: "おしえる", vi_du: [{ tu: "教える", hira: "おしえる", nghia: "Dạy" }, { tu: "教会", hira: "きょうかい", nghia: "Nhà thờ" }] },
+    { id: 254, kanji: "会", han_viet: "HỘI", nghia: "Gặp gỡ, hội họp", onyomi: "kai", kunyomi: "a.u", on_hira: "かい", kun_hira: "あう", vi_du: [{ tu: "会う", hira: "あう", nghia: "Gặp" }, { tu: "会議", hira: "かいぎ", nghia: "Hội nghị" }] },
+    { id: 255, kanji: "社", han_viet: "XÃ", nghia: "Công ty, đền", onyomi: "sha", kunyomi: "yashiro", on_hira: "しゃ", kun_hira: "やしろ", vi_du: [{ tu: "会社", hira: "かいしゃ", nghia: "Công ty" }, { tu: "社会", hira: "しゃかい", nghia: "Xã hội" }] },
+    { id: 256, kanji: "員", han_viet: "VIÊN", nghia: "Thành viên", onyomi: "in", kunyomi: "", on_hira: "いん", kun_hira: "", vi_du: [{ tu: "会社員", hira: "かいしゃいん", nghia: "Nhân viên công ty" }, { tu: "銀行員", hira: "ぎんこういん", nghia: "Nhân viên ngân hàng" }] },
+    { id: 257, kanji: "銀", han_viet: "NGÂN", nghia: "Bạc, ngân hàng", onyomi: "gin", kunyomi: "shirogane", on_hira: "ぎん", kun_hira: "しろがね", vi_du: [{ tu: "銀行", hira: "ぎんこう", nghia: "Ngân hàng" }, { tu: "銀メダル", hira: "ぎんメダル", nghia: "Huy chương bạc" }] },
+    { id: 258, kanji: "局", han_viet: "CỤC", nghia: "Cục, đài", onyomi: "kyoku", kunyomi: "tsubone", on_hira: "きょく", kun_hira: "つぼね", vi_du: [{ tu: "郵便局", hira: "ゆうびんきょく", nghia: "Bưu điện" }, { tu: "局", hira: "きょく", nghia: "Cục/Đài" }] },
+    { id: 259, kanji: "交", han_viet: "GIAO", nghia: "Giao nhau, qua lại", onyomi: "kou", kunyomi: "maji.waru", on_hira: "こう", kun_hira: "まじわる", vi_du: [{ tu: "交差点", hira: "こうさてん", nghia: "Ngã tư" }, { tu: "交流", hira: "こうりゅう", nghia: "Giao lưu" }] },
+    { id: 260, kanji: "通", han_viet: "THÔNG", nghia: "Đi qua, thông qua", onyomi: "tsuu", kunyomi: "too.ru", on_hira: "つう", kun_hira: "とおる", vi_du: [{ tu: "通る", hira: "とおる", nghia: "Đi qua" }, { tu: "交通", hira: "こうつう", nghia: "Giao thông" }] },
+    { id: 261, kanji: "運", han_viet: "VẬN", nghia: "Vận chuyển", onyomi: "un", kunyomi: "hako.bu", on_hira: "うん", kun_hira: "はこぶ", vi_du: [{ tu: "運ぶ", hira: "はこぶ", nghia: "Vận chuyển" }, { tu: "運動", hira: "うんどう", nghia: "Vận động" }] },
+    { id: 262, kanji: "転", han_viet: "CHUYỂN", nghia: "Lăn, chuyển động", onyomi: "ten", kunyomi: "koro.bu", on_hira: "てん", kun_hira: "ころぶ", vi_du: [{ tu: "運転", hira: "うんてん", nghia: "Lái xe" }, { tu: "自転車", hira: "じてんしゃ", nghia: "Xe đạp" }] },
+    { id: 263, kanji: "習", han_viet: "TẬP", nghia: "Học tập, luyện tập", onyomi: "shuu", kunyomi: "nara.u", on_hira: "しゅう", kun_hira: "ならう", vi_du: [{ tu: "習う", hira: "ならう", nghia: "Học" }, { tu: "練習", hira: "れんしゅう", nghia: "Luyện tập" }] },
+    { id: 264, kanji: "研", han_viet: "NGHIÊN", nghia: "Nghiên cứu", onyomi: "ken", kunyomi: "to.gu", on_hira: "けん", kun_hira: "とぐ", vi_du: [{ tu: "研究", hira: "けんきゅう", nghia: "Nghiên cứu" }, { tu: "研ぐ", hira: "とぐ", nghia: "Mài" }] },
+    { id: 265, kanji: "究", han_viet: "CỨU", nghia: "Nghiên cứu", onyomi: "kyuu", kunyomi: "kiwa.meru", on_hira: "きゅう", kun_hira: "きわめる", vi_du: [{ tu: "研究", hira: "けんきゅう", nghia: "Nghiên cứu" }, { tu: "究極", hira: "きゅうきょく", nghia: "Cực kỳ" }] },
+    { id: 266, kanji: "練", han_viet: "LUYỆN", nghia: "Luyện tập", onyomi: "ren", kunyomi: "ne.ru", on_hira: "れん", kun_hira: "ねる", vi_du: [{ tu: "練習", hira: "れんしゅう", nghia: "Luyện tập" }, { tu: "練る", hira: "ねる", nghia: "Nhào nặn" }] },
+    { id: 267, kanji: "場", han_viet: "TRƯỜNG", nghia: "Địa điểm, nơi", onyomi: "jou", kunyomi: "ba", on_hira: "じょう", kun_hira: "ば", vi_du: [{ tu: "場所", hira: "ばしょ", nghia: "Địa điểm" }, { tu: "工場", hira: "こうじょう", nghia: "Nhà máy" }] },
+    { id: 268, kanji: "所", han_viet: "SỞ", nghia: "Nơi chốn", onyomi: "sho", kunyomi: "tokoro", on_hira: "しょ", kun_hira: "ところ", vi_du: [{ tu: "所", hira: "ところ", nghia: "Nơi chốn" }, { tu: "住所", hira: "じゅうしょ", nghia: "Địa chỉ" }] },
+    { id: 269, kanji: "院", han_viet: "VIỆN", nghia: "Viện", onyomi: "in", kunyomi: "", on_hira: "いん", kun_hira: "", vi_du: [{ tu: "病院", hira: "びょういん", nghia: "Bệnh viện" }, { tu: "入院", hira: "にゅういん", nghia: "Nhập viện" }] },
+    { id: 270, kanji: "病", han_viet: "BỆNH", nghia: "Bệnh tật", onyomi: "byou", kunyomi: "yamai", on_hira: "びょう", kun_hira: "やまい", vi_du: [{ tu: "病気", hira: "びょうき", nghia: "Bệnh tật" }, { tu: "病室", hira: "びょうしつ", nghia: "Phòng bệnh" }] },
+    { id: 271, kanji: "薬", han_viet: "DƯỢC", nghia: "Thuốc", onyomi: "yaku", kunyomi: "kusuri", on_hira: "やく", kun_hira: "くすり", vi_du: [{ tu: "薬", hira: "くすり", nghia: "Thuốc" }, { tu: "薬屋", hira: "くすりや", nghia: "Hiệu thuốc" }] },
+    { id: 272, kanji: "屋", han_viet: "ỐC", nghia: "Nhà, cửa hàng", onyomi: "oku", kunyomi: "ya", on_hira: "おく", kun_hira: "や", vi_du: [{ tu: "部屋", hira: "へや", nghia: "Căn phòng" }, { tu: "本屋", hira: "ほんや", nghia: "Hiệu sách" }] },
+    { id: 273, kanji: "意", han_viet: "Ý", nghia: "Ý chí, ý nghĩa", onyomi: "i", kunyomi: "kokorozashi", on_hira: "い", kun_hira: "こころざし", vi_du: [{ tu: "意味", hira: "いみ", nghia: "Ý nghĩa" }, { tu: "意見", hira: "いけん", nghia: "Ý kiến" }] },
+    { id: 274, kanji: "味", han_viet: "VỊ", nghia: "Hương vị", onyomi: "mi", kunyomi: "aji", on_hira: "み", kun_hira: "あじ", vi_du: [{ tu: "味", hira: "あじ", nghia: "Vị" }, { tu: "意味", hira: "いみ", nghia: "Ý nghĩa" }] },
+    { id: 275, kanji: "勉", han_viet: "MIỄN", nghia: "Cố gắng", onyomi: "ben", kunyomi: "tsuto.meru", on_hira: "べん", kun_hira: "つとめる", vi_du: [{ tu: "勉強", hira: "べんきょう", nghia: "Học (Study)" }, { tu: "勤勉", hira: "きんべん", nghia: "Siêng năng" }] },
+    { id: 276, kanji: "強", han_viet: "CƯỜNG/CƯỠNG", nghia: "Mạnh", onyomi: "kyou", kunyomi: "tsuyo.i", on_hira: "きょう", kun_hira: "つよい", vi_du: [{ tu: "強い", hira: "つよい", nghia: "Mạnh" }, { tu: "強盗", hira: "ごうとう", nghia: "Tên cướp" }] },
+    { id: 277, kanji: "早", han_viet: "TẢO", nghia: "Sớm", onyomi: "sou", kunyomi: "haya.i", on_hira: "そう", kun_hira: "はやい", vi_du: [{ tu: "早い", hira: "はやい", nghia: "Nhanh/Sớm" }, { tu: "早朝", hira: "そうちょう", nghia: "Sáng sớm" }] },
+    { id: 278, kanji: "場", han_viet: "TRƯỜNG", nghia: "Địa điểm, nơi", onyomi: "jou", kunyomi: "ba", on_hira: "じょう", kun_hira: "ば", vi_du: [{ tu: "場所", hira: "ばしょ", nghia: "Địa điểm" }, { tu: "広場", hira: "ひろば", nghia: "Quảng trường" }] },
+    { id: 279, kanji: "所", han_viet: "SỞ", nghia: "Nơi chốn", onyomi: "sho", kunyomi: "tokoro", on_hira: "しょ", kun_hira: "ところ", vi_du: [{ tu: "所", hira: "ところ", nghia: "Nơi chốn" }, { tu: "住所", hira: "じゅうしょ", nghia: "Địa chỉ" }] },
+    { id: 280, kanji: "色", han_viet: "SẮC", nghia: "Màu sắc", onyomi: "shiki, shoku", kunyomi: "iro", on_hira: "しき", kun_hira: "いろ", vi_du: [{ tu: "色", hira: "いろ", nghia: "Màu sắc" }, { tu: "景色", hira: "けしき", nghia: "Phong cảnh" }] },
+    { id: 281, kanji: "洋", han_viet: "DƯƠNG", nghia: "Đại dương, phương Tây", onyomi: "you", kunyomi: "", on_hira: "よう", kun_hira: "", vi_du: [{ tu: "西洋", hira: "せいよう", nghia: "Phương Tây" }, { tu: "太平洋", hira: "たいへいよう", nghia: "Thái Bình Dương" }] },
+    { id: 282, kanji: "服", han_viet: "PHỤC", nghia: "Quần áo", onyomi: "fuku", kunyomi: "", on_hira: "ふく", kun_hira: "", vi_du: [{ tu: "服", hira: "ふく", nghia: "Quần áo" }, { tu: "洋服", hira: "ようふく", nghia: "Quần áo Tây" }] },
+    { id: 283, kanji: "品", han_viet: "PHẨM", nghia: "Sản phẩm", onyomi: "hin", kunyomi: "shina", on_hira: "ひん", kun_hira: "しな", vi_du: [{ tu: "品物", hira: "しなもの", nghia: "Hàng hóa" }, { tu: "食料品", hira: "しょくりょうひん", nghia: "Thực phẩm" }] },
+    { id: 284, kanji: "発", han_viet: "PHÁT", nghia: "Phát, xuất phát", onyomi: "hatsu", kunyomi: "tatsu", on_hira: "はつ", kun_hira: "たつ", vi_du: [{ tu: "出発", hira: "しゅっぱつ", nghia: "Xuất phát" }, { tu: "発明", hira: "はつめい", nghia: "Phát minh" }] },
+    { id: 285, kanji: "達", han_viet: "ĐẠT", nghia: "Đạt tới, bọn", onyomi: "tatsu", kunyomi: "tachi", on_hira: "たつ", kun_hira: "たち", vi_du: [{ tu: "私達", hira: "わたしたち", nghia: "Chúng tôi" }, { tu: "友達", hira: "ともだち", nghia: "Bạn bè" }] },
+    { id: 286, kanji: "立", han_viet: "LẬP", nghia: "Đứng", onyomi: "ritsu", kunyomi: "ta.tsu", on_hira: "りつ", kun_hira: "たつ", vi_du: [{ tu: "立つ", hira: "たつ", nghia: "Đứng" }, { tu: "自立", hira: "じりつ", nghia: "Tự lập" }] },
+    { id: 287, kanji: "結", han_viet: "KẾT", nghia: "Buộc, kết nối", onyomi: "ketsu", kunyomi: "musu.bu", on_hira: "けつ", kun_hira: "むすぶ", vi_du: [{ tu: "結ぶ", hira: "むすぶ", nghia: "Buộc" }, { tu: "結果", hira: "けっか", nghia: "Kết quả" }] },
+    { id: 288, kanji: "婚", han_viet: "HÔN", nghia: "Cưới hỏi", onyomi: "kon", kunyomi: "yome", on_hira: "こん", kun_hira: "よめ", vi_du: [{ tu: "結婚", hira: "けっこん", nghia: "Kết hôn" }, { tu: "婚約", hira: "こんやく", nghia: "Hôn ước" }] },
+    { id: 289, kanji: "式", han_viet: "THỨC", nghia: "Kiểu, nghi thức", onyomi: "shiki", kunyomi: "", on_hira: "しき", kun_hira: "", vi_du: [{ tu: "結婚式", hira: "けっこんしき", nghia: "Lễ cưới" }, { tu: "公式", hira: "こうしき", nghia: "Chính thức" }] },
+    { id: 290, kanji: "和", han_viet: "HÒA", nghia: "Hòa bình, kiểu Nhật", onyomi: "wa, o", kunyomi: "yawaragu", on_hira: "わ", kun_hira: "やわらぐ", vi_du: [{ tu: "平和", hira: "へいわ", nghia: "Hòa bình" }, { tu: "和食", hira: "わしょく", nghia: "Món ăn Nhật" }] },
+    { id: 291, kanji: "英", han_viet: "ANH", nghia: "Anh hùng, Anh quốc", onyomi: "ei", kunyomi: "hana", on_hira: "えい", kun_hira: "はな", vi_du: [{ tu: "英語", hira: "えいご", nghia: "Tiếng Anh" }, { tu: "英国", hira: "えいこく", nghia: "Nước Anh" }] },
+    { id: 292, kanji: "辞", han_viet: "TỪ", nghia: "Từ ngữ, từ chối", onyomi: "ji", kunyomi: "ya.meru", on_hira: "じ", kun_hira: "やめる", vi_du: [{ tu: "辞書", hira: "じしょ", nghia: "Từ điển" }, { tu: "辞める", hira: "やめる", nghia: "Nghỉ việc" }] },
+    { id: 293, kanji: "習", han_viet: "TẬP", nghia: "Học tập, luyện tập", onyomi: "shuu", kunyomi: "nara.u", on_hira: "しゅう", kun_hira: "ならう", vi_du: [{ tu: "習う", hira: "ならう", nghia: "Học" }, { tu: "練習", hira: "れんしゅう", nghia: "Luyện tập" }] },
+    { id: 294, kanji: "研", han_viet: "NGHIÊN", nghia: "Nghiên cứu", onyomi: "ken", kunyomi: "to.gu", on_hira: "けん", kun_hira: "とぐ", vi_du: [{ tu: "研究", hira: "けんきゅう", nghia: "Nghiên cứu" }, { tu: "研ぐ", hira: "とぐ", nghia: "Mài" }] },
+    { id: 295, kanji: "究", han_viet: "CỨU", nghia: "Nghiên cứu", onyomi: "kyuu", kunyomi: "kiwa.meru", on_hira: "きゅう", kun_hira: "きわめる", vi_du: [{ tu: "研究", hira: "けんきゅう", nghia: "Nghiên cứu" }, { tu: "探究", hira: "たんきゅう", nghia: "Tìm hiểu sâu" }] },
+    { id: 296, kanji: "貸", han_viet: "THẢI", nghia: "Cho vay, cho mượn", onyomi: "tai", kunyomi: "ka.su", on_hira: "たい", kun_hira: "かす", vi_du: [{ tu: "貸す", hira: "かす", nghia: "Cho mượn" }, { tu: "賃貸", hira: "ちんたい", nghia: "Cho thuê" }] },
+    { id: 297, kanji: "借", han_viet: "TÁ", nghia: "Mượn", onyomi: "shaku", kunyomi: "ka.riru", on_hira: "しゃく", kun_hira: "かりる", vi_du: [{ tu: "借りる", hira: "かりる", nghia: "Mượn" }, { tu: "借金", hira: "しゃっきん", nghia: "Tiền nợ" }] },
+    { id: 298, kanji: "送", han_viet: "TỐNG", nghia: "Gửi", onyomi: "sou", kunyomi: "oku.ru", on_hira: "そう", kun_hira: "おくる", vi_du: [{ tu: "送る", hira: "おくる", nghia: "Gửi" }, { tu: "放送", hira: "ほうそう", nghia: "Phát sóng" }] },
+    { id: 299, kanji: "役", han_viet: "DỊCH", nghia: "Vai trò, công việc", onyomi: "yaku", kunyomi: "eki", on_hira: "やく", kun_hira: "えき", vi_du: [{ tu: "役割", hira: "やくわり", nghia: "Vai trò" }, { tu: "市役所", hira: "しやくしょ", nghia: "Tòa thị chính" }] },
+    { id: 300, kanji: "職", han_viet: "CHỨC", nghia: "Công việc", onyomi: "shoku", kunyomi: "tsukasa", on_hira: "しょく", kun_hira: "つかさ", vi_du: [{ tu: "職業", hira: "しょくぎょう", nghia: "Nghề nghiệp" }, { tu: "職場", hira: "しょくば", nghia: "Nơi làm việc" }] },
+    { id: 301, kanji: "務", han_viet: "VỤ", nghia: "Nhiệm vụ", onyomi: "mu", kunyomi: "tsutome", on_hira: "む", kun_hira: "つとめる", vi_du: [{ tu: "事務", hira: "じむ", nghia: "Công việc văn phòng" }, { tu: "義務", hira: "ぎむ", nghia: "Nghĩa vụ" }] },
+    { id: 302, kanji: "理", han_viet: "LÝ", nghia: "Lý do, logic", onyomi: "ri", kunyomi: "kotowari", on_hira: "り", kun_hira: "ことわり", vi_du: [{ tu: "理由", hira: "りゆう", nghia: "Lý do" }, { tu: "料理", hira: "りょうり", nghia: "Món ăn" }] },
+    { id: 303, kanji: "科", han_viet: "KHOA", nghia: "Khoa học, khoa mục", onyomi: "ka", kunyomi: "", on_hira: "か", kun_hira: "", vi_du: [{ tu: "科学", hira: "かがく", nghia: "Khoa học" }, { tu: "教科書", hira: "きょうかしょ", nghia: "Sách giáo khoa" }] },
+    { id: 304, kanji: "主", han_viet: "CHỦ", nghia: "Chủ nhân", onyomi: "shu", kunyomi: "nushi", on_hira: "しゅ", kun_hira: "ぬし", vi_du: [{ tu: "主人", hira: "しゅじん", nghia: "Chủ nhân" }, { tu: "主に", hira: "おもに", nghia: "Chủ yếu" }] },
+    { id: 305, kanji: "様", han_viet: "DẠNG", nghia: "Cách thức, vị", onyomi: "you", kunyomi: "sama", on_hira: "よう", kun_hira: "さま", vi_du: [{ tu: "様", hira: "さま", nghia: "Ngài (kính ngữ)" }, { tu: "様子", hira: "ようす", nghia: "Trạng thái" }] },
+    { id: 306, kanji: "親", han_viet: "THÂN", nghia: "Cha mẹ, thân thiết", onyomi: "shin", kunyomi: "oya, shita.shii", on_hira: "しん", kun_hira: "おや", vi_du: [{ tu: "親", hira: "おや", nghia: "Cha mẹ" }, { tu: "親切", hira: "しんせつ", nghia: "Thân thiện" }] },
+    { id: 307, kanji: "切", han_viet: "THIẾT", nghia: "Cắt", onyomi: "setsu", kunyomi: "ki.ru", on_hira: "せつ", kun_hira: "きる", vi_du: [{ tu: "切る", hira: "きる", nghia: "Cắt" }, { tu: "切手", hira: "きって", nghia: "Tem" }] },
+    { id: 308, kanji: "便", han_viet: "TIỆN", nghia: "Tiện lợi, thư", onyomi: "ben, bin", kunyomi: "tayori", on_hira: "べん", kun_hira: "たより", vi_du: [{ tu: "便利", hira: "べんり", nghia: "Tiện lợi" }, { tu: "郵便局", hira: "ゆうびんきょく", nghia: "Bưu điện" }] },
+    { id: 309, kanji: "利", han_viet: "LỢI", nghia: "Lợi ích", onyomi: "ri", kunyomi: "ki.ku", on_hira: "り", kun_hira: "きく", vi_du: [{ tu: "便利", hira: "べんり", nghia: "Tiện lợi" }, { tu: "利用", hira: "りよう", nghia: "Sử dụng" }] },
+    { id: 310, kanji: "早", han_viet: "TẢO", nghia: "Sớm", onyomi: "sou", kunyomi: "haya.i", on_hira: "そう", kun_hira: "はやい", vi_du: [{ tu: "早い", hira: "はやい", nghia: "Nhanh/Sớm" }, { tu: "早朝", hira: "そうちょう", nghia: "Sáng sớm" }] },
+    { id: 311, kanji: "強", han_viet: "CƯỜNG/CƯỠNG", nghia: "Mạnh", onyomi: "kyou", kunyomi: "tsuyo.i", on_hira: "きょう", kun_hira: "つよい", vi_du: [{ tu: "強い", hira: "つよい", nghia: "Mạnh" }, { tu: "強盗", hira: "ごうとう", nghia: "Tên cướp" }] },
+    { id: 312, kanji: "弱", han_viet: "NHƯỢC", nghia: "Yếu", onyomi: "jaku", kunyomi: "yowa.i", on_hira: "じゃく", kun_hira: "よわい", vi_du: [{ tu: "弱い", hira: "よわい", nghia: "Yếu" }, { tu: "弱点", hira: "じゃくてん", nghia: "Điểm yếu" }] },
+    { id: 313, kanji: "重", han_viet: "TRỌNG/TRÙNG", nghia: "Nặng", onyomi: "juu", kunyomi: "omo.i", on_hira: "じゅう", kun_hira: "おもい", vi_du: [{ tu: "重い", hira: "おもい", nghia: "Nặng" }, { tu: "体重", hira: "たいじゅう", nghia: "Cân nặng" }] },
+    { id: 314, kanji: "軽", han_viet: "KHINH", nghia: "Nhẹ", onyomi: "kei", kunyomi: "karu.i", on_hira: "けい", kun_hira: "かるい", vi_du: [{ tu: "軽い", hira: "かるい", nghia: "Nhẹ" }, { tu: "軽食", hira: "けいしょく", nghia: "Bữa ăn nhẹ" }] },
+    { id: 315, kanji: "太", han_viet: "THÁI", nghia: "Béo, dày", onyomi: "tai", kunyomi: "futo.i", on_hira: "たい", kun_hira: "ふとい", vi_du: [{ tu: "太い", hira: "ふとい", nghia: "Béo, dày" }, { tu: "太陽", hira: "たいよう", nghia: "Mặt trời" }] },
+    { id: 316, kanji: "細", han_viet: "TẾ", nghia: "Gầy, mảnh", onyomi: "sai", kunyomi: "hoso.i", on_hira: "さい", kun_hira: "ほそい", vi_du: [{ tu: "細い", hira: "ほそい", nghia: "Mảnh, gầy" }, { tu: "細かい", hira: "こまかい", nghia: "Chi tiết" }] },
+    { id: 317, kanji: "室", han_viet: "THẤT", nghia: "Phòng", onyomi: "shitsu", kunyomi: "muro", on_hira: "しつ", kun_hira: "むろ", vi_du: [{ tu: "教室", hira: "きょうしつ", nghia: "Phòng học" }, { tu: "研究室", hira: "けんきゅうしつ", nghia: "Phòng nghiên cứu" }] },
+    { id: 318, kanji: "家", han_viet: "GIA", nghia: "Nhà", onyomi: "ka, ke", kunyomi: "ie, ya", on_hira: "か", kun_hira: "いえ", vi_du: [{ tu: "家族", hira: "かぞく", nghia: "Gia đình" }, { tu: "家", hira: "いえ", nghia: "Nhà" }] },
+    { id: 319, kanji: "族", han_viet: "TỘC", nghia: "Họ hàng, tộc", onyomi: "zoku", kunyomi: "yazoku", on_hira: "ぞく", kun_hira: "やぞく", vi_du: [{ tu: "家族", hira: "かぞく", nghia: "Gia đình" }, { tu: "民族", hira: "みんぞく", nghia: "Dân tộc" }] },
+    { id: 320, kanji: "旅", han_viet: "LỮ", nghia: "Du lịch", onyomi: "ryo", kunyomi: "tabi", on_hira: "りょ", kun_hira: "たび", vi_du: [{ tu: "旅行", hira: "りょこう", nghia: "Du lịch" }, { tu: "旅館", hira: "りょかん", nghia: "Quán trọ kiểu Nhật" }] },
+    { id: 321, kanji: "館", han_viet: "QUÁN", nghia: "Tòa nhà, quán", onyomi: "kan", kunyomi: "yakata", on_hira: "かん", kun_hira: "やかた", vi_du: [{ tu: "図書館", hira: "としょかん", nghia: "Thư viện" }, { tu: "博物館", hira: "はくぶつかん", nghia: "Bảo tàng" }] },
+    { id: 322, kanji: "映", han_viet: "ÁNH", nghia: "Phản chiếu", onyomi: "ei", kunyomi: "utsu.ru", on_hira: "えい", kun_hira: "うつる", vi_du: [{ tu: "映画", hira: "えいが", nghia: "Phim" }, { tu: "映す", hira: "うつす", nghia: "Phản chiếu" }] },
+    { id: 323, kanji: "画", han_viet: "HỌA/HOẠCH", nghia: "Vẽ, hình ảnh", onyomi: "ga, kaku", kunyomi: "e", on_hira: "が", kun_hira: "え", vi_du: [{ tu: "映画", hira: "えいが", nghia: "Phim" }, { tu: "計画", hira: "けいかく", nghia: "Kế hoạch" }] },
+    { id: 324, kanji: "紙", han_viet: "CHỈ", nghia: "Giấy", onyomi: "shi", kunyomi: "kami", on_hira: "し", kun_hira: "かみ", vi_du: [{ tu: "紙", hira: "かみ", nghia: "Giấy" }, { tu: "手紙", hira: "てがみ", nghia: "Thư" }] },
+    { id: 325, kanji: "切", han_viet: "THIẾT", nghia: "Cắt", onyomi: "setsu", kunyomi: "ki.ru", on_hira: "せつ", kun_hira: "きる", vi_du: [{ tu: "切る", hira: "きる", nghia: "Cắt" }, { tu: "切手", hira: "きって", nghia: "Tem" }] },
+    { id: 326, kanji: "送", han_viet: "TỐNG", nghia: "Gửi", onyomi: "sou", kunyomi: "oku.ru", on_hira: "そう", kun_hira: "おくる", vi_du: [{ tu: "送る", hira: "おくる", nghia: "Gửi" }, { tu: "放送", hira: "ほうそう", nghia: "Phát sóng" }] },
+    { id: 327, kanji: "終", han_viet: "CHUNG", nghia: "Kết thúc", onyomi: "shuu", kunyomi: "o.waru", on_hira: "しゅう", kun_hira: "おわる", vi_du: [{ tu: "終わる", hira: "おわる", nghia: "Kết thúc" }, { tu: "最終", hira: "さいしゅう", nghia: "Cuối cùng" }] },
+    { id: 328, kanji: "始", han_viet: "THỦY", nghia: "Bắt đầu", onyomi: "shi", kunyomi: "haji.meru", on_hira: "し", kun_hira: "はじまる", vi_du: [{ tu: "始まる", hira: "はじまる", nghia: "Bắt đầu" }, { tu: "開始", hira: "かいし", nghia: "Khởi sự" }] },
+    { id: 329, kanji: "音", han_viet: "ÂM", nghia: "Âm thanh", onyomi: "on, in", kunyomi: "oto", on_hira: "おん", kun_hira: "おと", vi_du: [{ tu: "音", hira: "おと", nghia: "Âm thanh" }, { tu: "音楽", hira: "おんがく", nghia: "Âm nhạc" }] },
+    { id: 330, kanji: "楽", han_viet: "LẠC/NHẠC", nghia: "Vui vẻ, âm nhạc", onyomi: "gaku, raku", kunyomi: "tano.shii", on_hira: "がく", kun_hira: "たのしい", vi_du: [{ tu: "楽しい", hira: "たのしい", nghia: "Vui vẻ" }, { tu: "楽な", hira: "らくな", nghia: "Thoải mái" }] },
+    { id: 331, kanji: "公", han_viet: "CÔNG", nghia: "Công cộng", onyomi: "kou", kunyomi: "kimi", on_hira: "こう", kun_hira: "きみ", vi_du: [{ tu: "公園", hira: "こうえん", nghia: "Công viên" }, { tu: "公立", hira: "こうりつ", nghia: "Công lập" }] },
+    { id: 332, kanji: "園", han_viet: "VIÊN", nghia: "Vườn", onyomi: "en", kunyomi: "sono", on_hira: "えん", kun_hira: "その", vi_du: [{ tu: "公園", hira: "こうえん", nghia: "Công viên" }, { tu: "幼稚園", hira: "ようちえん", nghia: "Mẫu giáo" }] },
+    { id: 333, kanji: "京", han_viet: "KINH", nghia: "Kinh đô", onyomi: "kyou", kunyomi: "miyako", on_hira: "きょう", kun_hira: "みやこ", vi_du: [{ tu: "東京", hira: "とうきょう", nghia: "Tokyo" }, { tu: "京都", hira: "きょうと", nghia: "Kyoto" }] },
+    { id: 334, kanji: "都", han_viet: "ĐÔ", nghia: "Thủ đô", onyomi: "to, tsu", kunyomi: "miyako", on_hira: "と", kun_hira: "みやこ", vi_du: [{ tu: "都市", hira: "とし", nghia: "Thành phố" }, { tu: "首都", hira: "しゅと", nghia: "Thủ đô" }] },
+    { id: 335, kanji: "内", han_viet: "NỘI", nghia: "Bên trong", onyomi: "nai, dai", kunyomi: "uchi", on_hira: "ない", kun_hira: "うち", vi_du: [{ tu: "内側", hira: "うちがわ", nghia: "Mặt trong" }, { tu: "内容", hira: "ないよう", nghia: "Nội dung" }] },
+    { id: 336, kanji: "市", han_viet: "THỊ", nghia: "Thành phố, chợ", onyomi: "shi", kunyomi: "ichi", on_hira: "し", kun_hira: "いち", vi_du: [{ tu: "都市", hira: "とし", nghia: "Thành phố" }, { tu: "市場", hira: "いちば", nghia: "Chợ" }] },
+    { id: 337, kanji: "場", han_viet: "TRƯỜNG", nghia: "Địa điểm, nơi", onyomi: "jou", kunyomi: "ba", on_hira: "じょう", kun_hira: "ば", vi_du: [{ tu: "場所", hira: "ばしょ", nghia: "Địa điểm" }, { tu: "広場", hira: "ひろば", nghia: "Quảng trường" }] },
+    { id: 338, kanji: "地", han_viet: "ĐỊA", nghia: "Đất đai", onyomi: "chi, ji", kunyomi: "", on_hira: "ち", kun_hira: "", vi_du: [{ tu: "地下鉄", hira: "ちかてつ", nghia: "Tàu điện ngầm" }, { tu: "地震", hira: "じしん", nghia: "Động đất" }] },
+    { id: 339, kanji: "鉄", han_viet: "THIẾT", nghia: "Sắt", onyomi: "tetsu", kunyomi: "kurogane", on_hira: "てつ", kun_hira: "くろがね", vi_du: [{ tu: "地下鉄", hira: "ちかてつ", nghia: "Tàu điện ngầm" }, { tu: "鉄分", hira: "てつぶん", nghia: "Chất sắt" }] },
+    { id: 340, kanji: "海", han_viet: "HẢI", nghia: "Biển", onyomi: "kai", kunyomi: "umi", on_hira: "かい", kun_hira: "うみ", vi_du: [{ tu: "海", hira: "うみ", nghia: "Biển" }, { tu: "海外", hira: "かいがい", nghia: "Hải ngoại" }] }
+];
+
+    /* ---------------------------------------------------------------------- */
+    /* II. STATE TOÀN CỤC                                                     */
+    /* ---------------------------------------------------------------------- */
+    let currentMode = 'flashcard';
+    let currentInnerQuizMode = 'meaning';
+    let masteredList = []; 
+    let reviewList = [];   
+    
+    // Flashcard State
+    let flashcardList = []; // Danh sách thẻ sẽ hiển thị (đã trộn)
+    let currentCardIndex = 0;
+
+    // Quiz State
+    let quizQuestions = []; 
+    let currentQuizIndex = 0;
+    let quizCorrectAnswerId = null;
+
+    const cardElement = document.getElementById('flashcard');
+
+    /* ---------------------------------------------------------------------- */
+    /* III. LOGIC CHUNG VÀ LƯU TRỮ                                            */
+    /* ---------------------------------------------------------------------- */
+
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+    
+    function saveProgress() {
+        localStorage.setItem('masteredList', JSON.stringify(masteredList));
+        localStorage.setItem('reviewList', JSON.stringify(reviewList));
+        updateProgressDisplay();
+    }
+
+    function loadProgress() {
+        const savedMastered = localStorage.getItem('masteredList');
+        const savedReview = localStorage.getItem('reviewList');
+        if (savedMastered) masteredList = JSON.parse(savedMastered);
+        if (savedReview) reviewList = JSON.parse(savedReview);
+        reviewList = reviewList.filter(id => !masteredList.includes(id));
+        updateProgressDisplay();
+    }
+
+    function updateProgressDisplay() {
+        const total = kanjiData.length;
+        const masteredCount = masteredList.length;
+        const reviewCount = reviewList.length;
+        const remainingCount = total - masteredCount - reviewCount;
+        document.getElementById('progressDisplay').innerHTML = `
+            Tổng: <b>${total}</b> | Đã thuộc: <b style="color:#28a745;">${masteredCount}</b> | Ôn lại: <b style="color:#ffc107;">${reviewCount}</b> | Còn lại: <b>${remainingCount}</b>
+        `;
+    }
+
+    function speak(text) {
+        if (!text || text.trim() === '') return;
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel(); 
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ja-JP'; 
+            utterance.rate = 1; 
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+    function speakKanji(e) { e.stopPropagation(); speak(flashcardList[currentCardIndex].kanji); }
+    function speakWord(text, e) { e.stopPropagation(); speak(text); }
+
+    /* ---------------------------------------------------------------------- */
+    /* IV. LOGIC FLASHCARD (MỚI: NGẪU NHIÊN CHƯA THUỘC)                       */
+    /* ---------------------------------------------------------------------- */
+
+    // Hàm khởi tạo danh sách học Flashcard
+    function initFlashcardSession(resetAll = false) {
+        // 1. Lọc ra các chữ chưa thuộc (không nằm trong masteredList)
+        let unlearnedItems = [];
+        
+        if (resetAll) {
+            unlearnedItems = [...kanjiData]; // Lấy tất cả
+        } else {
+            unlearnedItems = kanjiData.filter(item => !masteredList.includes(item.id));
+        }
+
+        // 2. Kiểm tra nếu đã thuộc hết
+        if (unlearnedItems.length === 0) {
+            document.getElementById('flashcardContainer').style.display = 'none';
+            document.getElementById('flashcardEmptyState').style.display = 'block';
+            return;
+        } else {
+            document.getElementById('flashcardContainer').style.display = 'block';
+            document.getElementById('flashcardEmptyState').style.display = 'none';
+        }
+
+        // 3. Trộn ngẫu nhiên
+        flashcardList = shuffle(unlearnedItems);
+        currentCardIndex = 0;
+        
+        // 4. Render thẻ đầu tiên
+        renderCard(currentCardIndex);
+    }
+
+    function renderCard(index) {
+        if (flashcardList.length === 0) return;
+        
+        // Cập nhật index an toàn
+        if (index < 0) index = 0;
+        if (index >= flashcardList.length) index = flashcardList.length - 1;
+        currentCardIndex = index;
+
+        const data = flashcardList[index];
+        
+        // Reset lật thẻ
+        cardElement.classList.remove('is-flipped');
+
+        // Render Mặt Trước
+        document.getElementById('f_kanji').textContent = data.kanji;
+        document.getElementById('f_hanviet').textContent = data.han_viet;
+
+        // Render Mặt Sau (delay nhẹ)
+        setTimeout(() => {
+            document.getElementById('cardBackContent').innerHTML = `
+                <div class="info-group">
+                    <div class="label">Nghĩa Tiếng Việt</div>
+                    <div class="content">${data.nghia}</div>
+                </div>
+                <div class="info-group">
+                    <div class="label">Cách đọc (On / Kun)</div>
+                    <div class="reading-box">
+                        <div class="reading-item">On: <span style="color:#d63384;">${data.onyomi}</span></div>
+                        <div class="reading-item">Kun: <span style="color:#28a745;">${data.kunyomi}</span></div>
+                    </div>
+                </div>
+                <div class="info-group" style="border: none;">
+                    <div class="label">Từ vựng ví dụ</div>
+                    <ul class="example-list" id="b_examples"></ul>
+                </div>
+            `;
+            const examplesList = document.getElementById('b_examples');
+            data.vi_du.forEach(ex => {
+                const li = document.createElement('li');
+                li.className = 'example-item';
+                li.innerHTML = `<div><div class="jp-word">${ex.tu} (${ex.hira})</div><div class="vi-mean">${ex.nghia}</div></div><button class="audio-btn" onclick="speakWord('${ex.tu}', event)">🔊</button>`;
+                examplesList.appendChild(li);
+            });
+        }, 200);
+
+        // Cập nhật điều hướng
+        document.getElementById('flashcardCounter').textContent = `${index + 1} / ${flashcardList.length}`;
+        document.getElementById('btnPrev').disabled = (index === 0);
+        document.getElementById('btnNext').disabled = (index === flashcardList.length - 1);
+    }
+
+    function flipCard() { if (currentMode === 'flashcard') cardElement.classList.toggle('is-flipped'); }
+
+    function changeCard(direction) {
+        const newIndex = currentCardIndex + direction;
+        if (newIndex >= 0 && newIndex < flashcardList.length) {
+            renderCard(newIndex);
+        }
+    }
+
+    // Đánh dấu thuộc/chưa thuộc
+    function markClassification(type) {
+        if (flashcardList.length === 0) return;
+        const currentId = flashcardList[currentCardIndex].id;
+        
+        // Xóa khỏi danh sách hiện tại
+        masteredList = masteredList.filter(id => id !== currentId);
+        reviewList = reviewList.filter(id => id !== currentId);
+
+        if (type === 'mastered') masteredList.push(currentId);
+        else if (type === 'review') reviewList.push(currentId);
+        
+        saveProgress();
+        
+        // Logic: Khi đánh dấu xong, tự động chuyển sang thẻ tiếp theo
+        // Nếu là thẻ cuối cùng thì giữ nguyên hoặc thông báo hết
+        if (currentCardIndex < flashcardList.length - 1) {
+            changeCard(1);
+        } else {
+            alert("Đã hết danh sách học hiện tại! Bro có thể bấm 'Trộn lại' nếu muốn ôn tiếp.");
+        }
+    }
+
+    function resetFlashcardSession() {
+        if(confirm("Bro muốn xóa trạng thái 'Đã thuộc' để học lại từ đầu không? \n(Cancel = Chỉ trộn lại để ôn tập, không xóa tiến độ)")) {
+             masteredList = [];
+             reviewList = [];
+             saveProgress();
+             initFlashcardSession(true);
+        } else {
+             // Chỉ trộn lại để học chơi, không xóa master list
+             // Nhưng ở đây logic là "Học từ chưa thuộc", nên nếu muốn ôn lại tất cả thì phải dùng mode resetAll
+             initFlashcardSession(true);
+        }
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* V. LOGIC QUIZ (GIỮ NGUYÊN NHƯ CŨ)                                      */
+    /* ---------------------------------------------------------------------- */
+
+    function setInnerQuizMode(innerMode) {
+        currentInnerQuizMode = innerMode;
+        document.getElementById('btnMeaningQuiz').classList.toggle('active', innerMode === 'meaning');
+        document.getElementById('btnReadingQuiz').classList.toggle('active', innerMode === 'reading');
+        generateQuizQuestions();
+        renderQuizQuestion(0);
+    }
+
+    function generateQuizQuestions() {
+        quizQuestions = [];
+        const targetMode = currentInnerQuizMode;
+        
+        kanjiData.forEach(q => {
+            if (targetMode === 'meaning') {
+                const distractors = shuffle(kanjiData.filter(d => d.id !== q.id)).slice(0, 3).map(d => d.nghia);
+                let options = shuffle([...distractors, q.nghia]);
+                quizQuestions.push({
+                    kanji: q.kanji,
+                    type: 'meaning',
+                    prompt: `Nghĩa tiếng Việt của Kanji là gì?`,
+                    correct_answer: q.nghia,
+                    options: options,
+                    correctIndex: options.indexOf(q.nghia),
+                    data: q
+                });
+            } else {
+                const isOn = Math.random() < 0.5 && q.on_hira;
+                const targetRead = isOn ? q.on_hira : q.kun_hira;
+                const targetType = isOn ? 'Onyomi' : 'Kunyomi';
+                if(targetRead) {
+                    const distractors = shuffle(kanjiData.filter(d => d.id !== q.id))
+                        .slice(0, 3)
+                        .map(d => isOn ? d.on_hira : d.kun_hira);
+                    let validDistractors = distractors.filter(d => d && d !== targetRead);
+                    let options = shuffle([...validDistractors, targetRead]);
+                    options = options.filter((v,i,a) => a.indexOf(v)===i).slice(0,4); 
+                    if(options.includes(targetRead)) {
+                        quizQuestions.push({
+                            kanji: q.kanji,
+                            type: 'reading',
+                            prompt: `Âm ${targetType} của Kanji là gì?`,
+                            correct_answer: targetRead,
+                            options: options,
+                            correctIndex: options.indexOf(targetRead),
+                            data: q
+                        });
+                    }
+                }
+            }
+        });
+        shuffle(quizQuestions);
+        currentQuizIndex = 0;
+    }
+
+    function renderQuizQuestion(index) {
+        if (quizQuestions.length === 0 || index >= quizQuestions.length) {
+            document.getElementById('q_kanji').textContent = '🎉';
+            document.getElementById('quizQuestionPrompt').textContent = 'Hoàn thành!';
+            document.getElementById('quizOptions').style.display = 'none';
+            document.getElementById('quizReadingReveal').style.display = 'none';
+            document.getElementById('quizExamplesArea').style.display = 'none';
+            document.getElementById('quizNextButton').style.display = 'none';
+            return;
+        }
+
+        const q = quizQuestions[index];
+        quizCorrectAnswerId = q.correctIndex;
+        
+        document.getElementById('q_kanji').textContent = q.kanji;
+        document.getElementById('quizReadingReveal').style.display = 'none';
+        document.getElementById('quizExamplesArea').style.display = 'none';
+        
+        document.getElementById('q_onyomi_hira').textContent = q.data.on_hira;
+        document.getElementById('q_kunyomi_hira').textContent = q.data.kun_hira;
+
+        document.getElementById('quizQuestionPrompt').textContent = q.prompt;
+        document.getElementById('quizResult').textContent = 'Chọn đáp án...';
+        document.getElementById('quizResult').style.backgroundColor = 'transparent';
+        document.getElementById('quizNextButton').style.display = 'none';
+        document.getElementById('quizOptions').style.display = 'block';
+
+        const buttons = document.querySelectorAll('#quizOptions button');
+        buttons.forEach((btn, i) => {
+            if (q.options[i]) {
+                btn.textContent = `${['A', 'B', 'C', 'D'][i]}. ${q.options[i]}`;
+                btn.disabled = false;
+                btn.style.backgroundColor = 'white';
+                btn.style.display = 'block';
+            } else {
+                btn.style.display = 'none';
+            }
+        });
+    }
+
+    function checkAnswer(selectedIndex) {
+        const buttons = document.querySelectorAll('#quizOptions button');
+        const q = quizQuestions[currentQuizIndex];
+        
+        buttons.forEach(btn => btn.disabled = true);
+        const isCorrect = (selectedIndex === quizCorrectAnswerId);
+
+        if (isCorrect) {
+            document.getElementById('quizResult').textContent = '✅ Chính xác!';
+            document.getElementById('quizResult').style.backgroundColor = '#d4edda';
+            buttons[selectedIndex].style.backgroundColor = '#d4edda';
+            reviewList = reviewList.filter(id => id !== q.data.id);
+        } else {
+            document.getElementById('quizResult').textContent = '❌ Sai rồi.';
+            document.getElementById('quizResult').style.backgroundColor = '#f8d7da';
+            buttons[selectedIndex].style.backgroundColor = '#f8d7da';
+            buttons[quizCorrectAnswerId].style.backgroundColor = '#d4edda';
+            if (!reviewList.includes(q.data.id)) reviewList.push(q.data.id);
+        }
+
+        document.getElementById('quizReadingReveal').style.display = 'flex';
+
+        const exampleListEl = document.getElementById('q_examples_list');
+        exampleListEl.innerHTML = ''; // Xóa cũ
+        if (q.data.vi_du && q.data.vi_du.length > 0) {
+            q.data.vi_du.forEach(ex => {
+                const li = document.createElement('li');
+                li.className = 'example-item';
+                
+                // --- ĐOẠN CODE ĐÃ SỬA: Truyền cả Kanji và Hiragana để TTS đọc ---
+                // Chuỗi để đọc: "日本 にほん" (Kanji và cách đọc)
+                const textToSpeak = `${ex.tu} ${ex.hira}`; 
+                
+                li.innerHTML = `
+                    <div>
+                        <div class="jp-word" style="font-size: 20px;">${ex.tu} (${ex.hira})</div>
+                        <div class="vi-mean">${ex.nghia}</div>
+                    </div>
+                    <button class="audio-btn" onclick="speakWord('${ex.hira.replace(/'/g, "\\'")}', event)">🔊</button>
+                `;
+                // Đã escape ký tự ' để tránh lỗi string trong JS
+                // ---------------------------------------------------------------
+                exampleListEl.appendChild(li);
+            });
+            document.getElementById('quizExamplesArea').style.display = 'block'; // Hiện vùng ví dụ
+        } else {
+            document.getElementById('quizExamplesArea').style.display = 'none';
+        }
+
+        if (q.type === 'reading') speak(q.correct_answer);
+
+        saveProgress();
+        document.getElementById('quizNextButton').style.display = 'block';
+    }
+
+    function nextQuizQuestion() { currentQuizIndex++; renderQuizQuestion(currentQuizIndex); }
+    
+    function speakQuizReading(type, e) {
+        e.stopPropagation();
+        if (quizQuestions.length === 0 || currentQuizIndex >= quizQuestions.length) return;
+        const q = quizQuestions[currentQuizIndex];
+        const text = (type === 'onyomi') ? q.data.on_hira : q.data.kun_hira;
+        speak(text);
+    }
+
+    /* --- MODE SWITCH --- */
+    function setMode(mode) {
+        currentMode = mode;
+        const isFlashcard = mode === 'flashcard';
+        document.getElementById('flashcardModeDisplay').style.display = isFlashcard ? 'block' : 'none';
+        document.getElementById('quizModeDisplay').style.display = isFlashcard ? 'none' : 'block';
+        document.getElementById('navigationControls').style.display = isFlashcard ? 'flex' : 'none';
+        document.getElementById('classificationControls').style.display = isFlashcard ? 'flex' : 'none';
+        document.getElementById('btnFlashcardMode').classList.toggle('active', isFlashcard);
+        document.getElementById('btnQuizMode').classList.toggle('active', !isFlashcard);
+        
+        if (isFlashcard) {
+            // Khi vào Flashcard, khởi tạo lại danh sách ngẫu nhiên
+            initFlashcardSession();
+        } else {
+            setInnerQuizMode('meaning');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { 
+        loadProgress(); 
+        // Thay vì render trực tiếp, ta init session flashcard để nó lọc và trộn
+        initFlashcardSession();
+    });
+</script>
+
+</body>
+</html>
